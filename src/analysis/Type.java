@@ -3,11 +3,12 @@ package analysis;
 public class Type {
 
 	public enum Types {
-		Bool, Int
+		Bool, Int, Err
 	}
 
 	public static final Type BOOL = new Type(Types.Bool);
 	public static final Type INT = new Type(Types.Int);
+	public static final Type ERR = new Type(Types.Bool);
 
 	public Types type;
 
@@ -30,6 +31,9 @@ public class Type {
 
 			case "int":
 				return INT;
+				
+			case "err":
+				return ERR;
 
 			default:
 				throw new IllegalArgumentException(text);

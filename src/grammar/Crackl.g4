@@ -34,7 +34,8 @@ expr: expr DOT ID                   #fieldExpr
     | expr OR  expr                 #orExpr
     | expr (LT | GT | EQ | NE) expr #compExpr
     | LPAR expr RPAR                #parExpr
-    | (NUM | BOOL)		            #constExpr
+    | NUM				            #constNumExpr
+    | BOOL							#constBoolExpr
     | ID                            #idExpr
     ;
 
