@@ -1,4 +1,4 @@
-grammar cracklGrammar;
+grammar Crackl;
 
 program: PROGRAM_START LCURL stat+ RCURL;
 

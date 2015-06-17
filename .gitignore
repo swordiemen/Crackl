@@ -1,3 +1,12 @@
+.project
+.classpath
+src/grammar/cracklGrammarBaseListener.java
+src/grammar/cracklGrammarLexer.java
+src/grammar/cracklGrammarListener.java
+src/grammar/cracklGrammarParser.java
+src/grammar/cracklGrammar.tokens
+src/grammar/cracklGrammarLexer.java
+
 # Windows image file caches
 Thumbs.db
 ehthumbs.db
@@ -41,3 +50,4 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
+/bin/
