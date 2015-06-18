@@ -7,6 +7,11 @@ src/grammar/cracklGrammarParser.java
 src/grammar/cracklGrammar.tokens
 src/grammar/cracklGrammarLexer.java
 
+machine/bin
+machine/sprockell
+machine/*.hi
+machine/*.o
+
 # Windows image file caches
 Thumbs.db
 ehthumbs.db
