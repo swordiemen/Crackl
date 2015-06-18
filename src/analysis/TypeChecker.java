@@ -4,6 +4,7 @@ import grammar.CracklBaseListener;
 import grammar.CracklParser.AddExprContext;
 import grammar.CracklParser.AndExprContext;
 import grammar.CracklParser.AssignStatContext;
+import grammar.CracklParser.BlockStatContext;
 import grammar.CracklParser.CompExprContext;
 import grammar.CracklParser.ConstBoolExprContext;
 import grammar.CracklParser.ConstNumExprContext;
@@ -14,9 +15,11 @@ import grammar.CracklParser.FuncContext;
 import grammar.CracklParser.FuncExprContext;
 import grammar.CracklParser.FuncStatContext;
 import grammar.CracklParser.IdExprContext;
+import grammar.CracklParser.IfStatContext;
 import grammar.CracklParser.NotExprContext;
 import grammar.CracklParser.OrExprContext;
 import grammar.CracklParser.ParExprContext;
+import grammar.CracklParser.PrintStatContext;
 import grammar.CracklParser.ProgramContext;
 import grammar.CracklParser.RetContext;
 import grammar.CracklParser.TargetContext;
@@ -27,19 +30,59 @@ import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.RuleContext;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTreeProperty;
+import org.antlr.v4.runtime.tree.TerminalNode;
 
 public class TypeChecker extends CracklBaseListener {
 
-	ParseTreeProperty<Type> types = new ParseTreeProperty<Type>();
-	ArrayList<String> errors = new ArrayList<String>();
-	ArrayList<ParserRuleContext> initializedVars = new ArrayList<ParserRuleContext>();
+	ParseTreeProperty<Type> types;
+	ArrayList<String> errors;
+	ArrayList<ParserRuleContext> initializedVars;
+	ArrayList<Scope> scopes;
+	
+	public TypeChecker(){
+		types = new ParseTreeProperty<Type>();
+		errors = new ArrayList<String>();
+		initializedVars = new ArrayList<ParserRuleContext>();
+		scopes = new ArrayList<Scope>();
+	}
+	
+	@Override
+	public void enterProgram(ProgramContext ctx) {
+		scopes.add(new Scope(null));
+	}
+	
+	@Override
+	public void exitBlockStat(BlockStatContext ctx) {
+		scopes.remove(scopes.size() - 1);
+	}
+	
+	@Override
+	public void enterBlockStat(BlockStatContext ctx) {
+		Scope lastScope = scopes.get(scopes.size() - 1); 
+		Scope scope = new Scope(lastScope);
+		scopes.add(scope);
+	}
 
 	@Override
 	public void exitAssignStat(AssignStatContext ctx)
 	{
-		Type lhsType = Type.get(ctx.target().getText());
+		Type lhsType = getType(ctx.target());
 		checkType(ctx.expr(), lhsType);
 		initializedVars.add(ctx);
+	}
+	
+	@Override
+	public void exitIfStat(IfStatContext ctx) {
+		checkType(ctx.expr(), Type.BOOL);
+	}
+	
+	@Override
+	public void exitPrintStat(PrintStatContext ctx) {
+		String res = ctx.STRING().getText();
+		for(TerminalNode prc : ctx.ID()){
+			res += ", " + prc.getText() + " : " + getTypeByString(prc.getText());
+		}
+		System.out.println(res);
 	}
 
 	@Override
@@ -50,6 +93,8 @@ public class TypeChecker extends CracklBaseListener {
 			checkType(ctx.expr(), lhsType);
 		}
 		types.put(ctx, lhsType);
+		Scope curScope = scopes.get(scopes.size()-1);
+		curScope.put(ctx.ID().getText(), lhsType);
 	}
 	
 	@Override
@@ -70,9 +115,19 @@ public class TypeChecker extends CracklBaseListener {
 	
 	@Override
 	public void exitProgram(ProgramContext ctx) {
-		System.out.println(types);
+		if(hasErrors()){
+			for (String error : errors) {
+				System.out.println(error);
+			}
+		}else{
+			System.out.println("Build succeeded without typecheck errors.");
+		}
 	}
 	
+	private boolean hasErrors() {
+		return this.errors.size() > 0;
+	}
+
 	@Override
 	public void exitNotExpr(NotExprContext ctx) {
 		if(checkType(ctx.expr(), Type.BOOL)){
@@ -166,9 +221,40 @@ public class TypeChecker extends CracklBaseListener {
 
 	private Type getType(RuleContext ctx)
 	{
-		Type type = types.get(ctx);
+		String var = ctx.getText();
+		Type type = null;
+		boolean found = false;
+		if(types.get(ctx) != null){
+			found = true;
+			type = types.get(ctx);
+		}
+		for(int i = scopes.size() - 1; i >= 0 && !found; i--){
+			Scope curScope = scopes.get(i);
+			if(curScope.exists(var)){
+				type = curScope.getType(var);
+				break;
+			}
+		}
 		if (type == null) {
-			addError("Not declared" + ctx);
+			addError("Not declared: " + ctx.getText());
+			type = Type.ERR;
+		}
+		return type;
+	}
+	
+	private Type getTypeByString(String var)
+	{
+		Type type = null;
+		boolean found = false;
+		for(int i = scopes.size() - 1; i >= 0 && !found; i--){
+			Scope curScope = scopes.get(i);
+			if(curScope.exists(var)){
+				type = curScope.getType(var);
+				found = true;
+			}
+		}
+		if (type == null) {
+			addError("Not declared: " + var);
 			type = Type.ERR;
 		}
 		return type;

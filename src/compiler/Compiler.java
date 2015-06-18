@@ -10,6 +10,8 @@ import java.io.FileReader;
 import java.io.IOException;
 
 import org.antlr.v4.runtime.ANTLRFileStream;
+import org.antlr.v4.runtime.ANTLRInputStream;
+import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.Parser;
@@ -19,6 +21,7 @@ import org.antlr.v4.runtime.tree.ParseTreeListener;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 
 import analysis.TypeChecker;
+import grammar.CracklParser.*;
 
 public class Compiler {
 	ParseTreeListener listener;
@@ -33,17 +36,19 @@ public class Compiler {
 		new ParseTreeWalker().walk(listener, tree);
 	}
 	
-	public ParseTree parse(String fileName){
-		CracklLexer lexer = null;
+	public ParseTree parse(String fileName){		
+		CharStream chars = null;
 		try {
-			lexer = new CracklLexer(new ANTLRFileStream(fileName));
+			chars = new ANTLRInputStream(new FileReader(fileName));
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		TokenStream ts = new CommonTokenStream(lexer);
-		Parser parser = new CracklParser(ts);
-		return parser.getContext();
+		Lexer lexer = new CracklLexer(chars);
+		TokenStream tokens = new CommonTokenStream(lexer);
+		CracklParser parser = new CracklParser(tokens);
+		ProgramContext tree = parser.program();
+		return tree;
 	}
 	
 	public static void main(String[] args){
