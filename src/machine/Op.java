@@ -1,5 +1,7 @@
 package machine;
 
+import java.util.EnumSet;
+
 
 public class Op {
 
@@ -26,7 +28,8 @@ public class Op {
 		Debug;
 	}
 	
-	public enum Reg {
+	public enum Register {
+		RegReserved, //to reserve space on the stack
 		Zero,
 		PC,
 		SP,
@@ -37,6 +40,8 @@ public class Op {
 		RegD,
 		RegE
 	}
+	
+	public static final EnumSet<Register> gpRegisters = EnumSet.of(Register.RegA, Register.RegB, Register.RegC, Register.RegD, Register.RegE); 
 
 	public enum Target {
 		Abs,

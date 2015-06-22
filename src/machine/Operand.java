@@ -42,12 +42,29 @@ public class Operand {
 	
 	public class Reg extends Operand{
 		
-		public final Op.Reg reg;
+		public final Op.Register reg;
 
-		public Reg(Op.Reg reg)
+		public Reg(Op.Register reg)
 		{
 			super(Type.Reg, reg.toString());
 			this.reg = reg;
+		}
+	}
+	
+	public class Const extends Operand
+	{
+		public final int value;
+		
+		public Const(int v)
+		{
+			super(Type.Const, Integer.toString(v));
+			value = v;
+		}
+		
+		public Const(boolean b)
+		{
+			super(Type.Const, Boolean.toString(b));
+			value = b ? 1 : 0;
 		}
 	}
 
@@ -56,8 +73,9 @@ public class Operand {
 	 * @author willem
 	 *
 	 */
-	public class MemAddr extends Operand{
+	public static class MemAddr extends Operand{
 		
+		public static final MemAddr StdIO = new MemAddr(0, 0x1000000);
 		public final int absAddress;
 
 		public MemAddr(int base, int offset)
