@@ -8,21 +8,21 @@ public class Scope {
 	private Map<String, Type> types;
 	private Map<String, Integer> offsets;
 	private Scope prevScope;
-	
+
 	public Scope(Scope s){
 		types = new HashMap<String, Type>();
 		offsets = new HashMap<String, Integer>();
 		prevScope = s;
 	}
-	
+
 	public Scope getScope(){
 		return prevScope;
 	}
-	
+
 	public boolean exists(String var){
 		return types.containsKey(var);
 	}
-	
+
 	public boolean put(String var, Type type){
 		boolean isDecl = exists(var);
 		if(!isDecl){
@@ -32,14 +32,14 @@ public class Scope {
 		}
 		return isDecl;
 	}
-	
+
 	public int getBaseAddress(){
 		if(prevScope == null){
 			return 0;
 		}
 		return prevScope.getSize() + prevScope.getBaseAddress();
 	}
-	
+
 	private int getSize() {
 		return size;
 	}
@@ -55,8 +55,21 @@ public class Scope {
 //		}
 		return type;
 	}
-	
+
 	public int getOffset(String var){
 		return offsets.get(var);
+	}
+
+	public MemoryLocation getMemLoc(String var){
+		MemoryLocation memLoc = null;
+		Integer offset = offsets.get(var);
+		if(offset != null){
+			memLoc = new MemoryLocation(this, getOffset(var));
+		}else if(prevScope == null && offset == null){
+			return null;
+		}else{
+			return prevScope.getMemLoc(var);
+		}
+		return memLoc;
 	}
 }
