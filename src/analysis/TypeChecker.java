@@ -38,24 +38,29 @@ public class TypeChecker extends CracklBaseListener {
 	ArrayList<String> errors;
 	ArrayList<ParserRuleContext> initializedVars;
 	ArrayList<Scope> scopes;
-	
+	Result result;
+
 	public TypeChecker(){
 		types = new ParseTreeProperty<Type>();
 		errors = new ArrayList<String>();
 		initializedVars = new ArrayList<ParserRuleContext>();
 		scopes = new ArrayList<Scope>();
+		result = new Result();
 	}
-	
+
 	@Override
 	public void enterProgram(ProgramContext ctx) {
 		scopes.add(new Scope(null));
 	}
-	
+
 	@Override
 	public void exitBlockStat(BlockStatContext ctx) {
+		Scope removeScope = scopes.get(scopes.size() - 1);
 		scopes.remove(scopes.size() - 1);
+		result.addScope(ctx, removeScope);
+		result.addNode(ctx);
 	}
-	
+
 	@Override
 	public void enterBlockStat(BlockStatContext ctx) {
 		Scope lastScope = scopes.get(scopes.size() - 1); 
@@ -70,12 +75,12 @@ public class TypeChecker extends CracklBaseListener {
 		checkType(ctx.expr(), lhsType);
 		initializedVars.add(ctx);
 	}
-	
+
 	@Override
 	public void exitIfStat(IfStatContext ctx) {
 		checkType(ctx.expr(), Type.BOOL);
 	}
-	
+
 	@Override
 	public void exitPrintStat(PrintStatContext ctx) {
 		String res = ctx.STRING().getText();
@@ -88,15 +93,23 @@ public class TypeChecker extends CracklBaseListener {
 	@Override
 	public void exitDecl(DeclContext ctx)
 	{
-		Type lhsType = Type.get(ctx.type().getText());
-		if (ctx.expr() != null) {
-			checkType(ctx.expr(), lhsType);
-		}
-		types.put(ctx, lhsType);
+		String var = ctx.ID().getText();
 		Scope curScope = scopes.get(scopes.size()-1);
-		curScope.put(ctx.ID().getText(), lhsType);
+		if(curScope.getType(var) != null){
+			addError(String.format("Variable '%s' already declared in this scope!", var));
+		}else{
+			Type lhsType = Type.get(ctx.type().getText());
+			if (ctx.expr() != null) {
+				checkType(ctx.expr(), lhsType);
+			}
+			types.put(ctx, lhsType);
+			curScope.put(var, lhsType);
+			result.addType(ctx, lhsType);
+			result.addOffset(ctx, curScope.getOffset(var));
+			result.addNode(ctx);
+		}
 	}
-	
+
 	@Override
 	public void exitIdExpr(IdExprContext ctx)
 	{
@@ -112,18 +125,33 @@ public class TypeChecker extends CracklBaseListener {
 		types.put(ctx, retType);
 		checkType(ctx.ret(), retType);
 	}
-	
+
 	@Override
 	public void exitProgram(ProgramContext ctx) {
 		if(hasErrors()){
 			for (String error : errors) {
-				System.out.println(error);
+				System.err.println(error);
 			}
+			System.err.println("Build failed.");
 		}else{
+			result.addScope(ctx, scopes.get(0));	//there should be only 1 scope left, namely the global scope.
+			result.addNode(ctx);
 			System.out.println("Build succeeded without typecheck errors.");
+//			for(ParserRuleContext prc : result.getNodes()){		// testing 
+//				System.out.println("----------------" + prc.getText() + "----------------");
+//				if(result.getTypes().get(prc) != null){
+//					System.out.println("Type: " + result.getType(prc));
+//				}
+//				if(result.getOffsets().get(prc) != null){
+//					System.out.println("Offset: " + result.getOffset(prc));
+//				}
+//				if(result.getScopes().get(prc) != null){
+//					System.out.println("Scope base: " + result.getScope(prc).getBaseAddress());
+//				}
+//			}
 		}
 	}
-	
+
 	private boolean hasErrors() {
 		return this.errors.size() > 0;
 	}
@@ -132,9 +160,12 @@ public class TypeChecker extends CracklBaseListener {
 	public void exitNotExpr(NotExprContext ctx) {
 		if(checkType(ctx.expr(), Type.BOOL)){
 			types.put(ctx, Type.BOOL);
+			result.addType(ctx, Type.BOOL);
 		}else{
 			types.put(ctx, Type.ERR);
+			result.addType(ctx, Type.ERR);
 		}
+		result.addNode(ctx);
 	}
 
 	@Override
@@ -142,84 +173,101 @@ public class TypeChecker extends CracklBaseListener {
 	{
 		types.put(ctx, types.get(ctx.expr()));
 	}
-	
+
 	@Override
 	public void exitAddExpr(AddExprContext ctx) {
 		if(checkType(ctx.expr(0), Type.INT) && checkType(ctx.expr(1), Type.INT)){
 			types.put(ctx, Type.INT);
+			result.addType(ctx, Type.INT);
 		}else{
 			types.put(ctx, Type.ERR);
+			result.addType(ctx, Type.ERR);
 		}
+		result.addNode(ctx);
 	}
-	
+
 	@Override
 	public void exitFuncExpr(FuncExprContext ctx) {
 		types.put(ctx, getType(ctx.funcCall()));
 	}
-	
+
 	@Override
 	public void exitFuncCall(FuncCallContext ctx) {
 		//TODO Params type checken.
 	}
-	
+
 	@Override
 	public void exitAndExpr(AndExprContext ctx) {
 		if(checkType(ctx.expr(0), Type.BOOL) && checkType(ctx.expr(1), Type.BOOL)){
 			types.put(ctx, Type.BOOL);
+			result.addType(ctx, Type.BOOL);
 		}else{
 			types.put(ctx, Type.ERR);
+			result.addType(ctx, Type.ERR);
 		}
+		result.addNode(ctx);
 	}
-	
+
 	@Override
 	public void exitFuncStat(FuncStatContext ctx) {
 		types.put(ctx, getType(ctx.func()));
 	}
-	
+
 	@Override
 	public void exitConstBoolExpr(ConstBoolExprContext ctx) {
 		types.put(ctx, Type.BOOL);
+		result.addType(ctx, Type.BOOL);
+		result.addNode(ctx);
 	}
-	
+
 	@Override
 	public void exitConstNumExpr(ConstNumExprContext ctx) {
 		types.put(ctx, Type.INT);
+		result.addType(ctx, Type.INT);
+		result.addNode(ctx);
 	}
-	
+
 	@Override
 	public void exitCompExpr(CompExprContext ctx) {
 		if(checkType(ctx.expr(0), Type.INT) && checkType(ctx.expr(1), Type.INT)){
 			types.put(ctx, Type.BOOL);
+			result.addType(ctx, Type.BOOL);
 		}else{
 			types.put(ctx, Type.ERR);
+			result.addType(ctx, Type.ERR);
 		}
+		result.addNode(ctx);
 	}
-	
+
 	@Override
 	public void exitParExpr(ParExprContext ctx) {
 		types.put(ctx, getType(ctx.expr()));
 	}
-	
+
 	@Override
 	public void exitOrExpr(OrExprContext ctx) {
 		if(checkType(ctx.expr(0), Type.BOOL) && checkType(ctx.expr(1), Type.BOOL)){
 			types.put(ctx, Type.BOOL);
+			result.addType(ctx, Type.BOOL);
 		}else{
 			types.put(ctx, Type.ERR);
+			result.addType(ctx, Type.ERR);
 		}
+		result.addNode(ctx);
 	}
 
-	private boolean checkType(RuleContext ctx, Type expected)
+	public boolean checkType(RuleContext ctx, Type expected)
 	{
+		boolean res = true;
 		Type type = getType(ctx);
 		if (!type.equals(expected)) {
 			addError(ctx, "Expected type " + expected + ", got " + type);
-			return false;
+			res = false;
 		}
-		return true;
+		return res;
 	}
 
-	private Type getType(RuleContext ctx)
+	public Type getType(RuleContext ctx)
 	{
 		String var = ctx.getText();
 		Type type = null;
@@ -239,10 +287,11 @@ public class TypeChecker extends CracklBaseListener {
 			addError("Not declared: " + ctx.getText());
 			type = Type.ERR;
 		}
+		result.addType((ParserRuleContext) ctx, type);
 		return type;
 	}
-	
-	private Type getTypeByString(String var)
+
+	public Type getTypeByString(String var)
 	{
 		Type type = null;
 		boolean found = false;
@@ -260,16 +309,20 @@ public class TypeChecker extends CracklBaseListener {
 		return type;
 	}
 
-	private void addError(String s)
+	public void addError(String s)
 	{
 		errors.add(s);
 	}
 
-	private void addError(RuleContext ctx, String error)
+	public void addError(RuleContext ctx, String error)
 	{
 		Token start = ((ParserRuleContext) ctx).start;
 		String pos = start.getLine() + ":" + start.getCharPositionInLine();
 		addError(String.format("%s (%s)", error, pos));
+	}
+
+	public Result getResult(){
+		return result;
 	}
 
 }

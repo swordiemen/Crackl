@@ -45,7 +45,15 @@ public class Scope {
 	}
 
 	public Type getType(String var){
-		return types.get(var);
+		Type type = types.get(var);
+//		if(type != null){
+//			return type;
+//		}else if(prevScope == null && type == null){
+//			return null;
+//		}else{
+//			return prevScope.getType(var)
+//		}
+		return type;
 	}
 	
 	public int getOffset(String var){
