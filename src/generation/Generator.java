@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Stack;
 
 import machine.Op;
+import machine.Op.Operator;
 import machine.Op.Register;
 import machine.Operand;
 import machine.Operand.Const;
@@ -53,16 +54,33 @@ public class Generator extends CracklBaseVisitor<Op>{
 		freeRegisters.addAll(Op.gpRegisters);
 	}
 	
-	/**
 	@Override
 	public Op visitIfStat(IfStatContext ctx)
 	{
 		visit(ctx.expr());
 		Reg r1 = popReg();
-		add(Branch, r1, abs(elseLine));
-		return super.visitIfStat(ctx);
+		int branchLine = program.size();
+		if(ctx.ELSE()!=null)
+		{
+			visit(ctx.stat(1)); // may be a block or a single stat
+			int ifEndLine = program.size(); // should get the jump to fake node
+			visit(ctx.stat(0)); // may be a block or a single stat
+			int nextEnterLine = program.size(); // next block in cfg
+			nextEnterLine += 2;// ++ because of insertion of Jump and Branch
+			int elseLine = ifEndLine + 2;
+			addAt(ifEndLine, Jump, abs(nextEnterLine));
+			addAt(branchLine, Branch, r1, abs(elseLine));
+		}else{
+			visit(ctx.stat(0)); 
+			int nextEnterLine = program.size();
+			//negation of the expression value (because Branch jumps if true). This way it's easier to implement the control flow.
+			addAt(branchLine++, Compute, operator(Operator.Equal), r1, reg(Zero), r1);
+			addAt(branchLine, Branch, r1, abs(nextEnterLine));
+		}
+		
+		freeReg(r1);
+		return null;
 	}
-	**/
 	
 	@Override
 	public Op visitAddExpr(AddExprContext ctx)
@@ -266,6 +284,11 @@ public class Generator extends CracklBaseVisitor<Op>{
 		}
 	}
 	
+	private void addAt(int lineNr, Op.Instruction op, Operand... args){
+		Line line = new Line(op, args);
+		program.add(lineNr, line);
+	}
+
 	private void add(Op.Instruction op, Operand... args){
 		Line line = new Line(op, args);
 		program.add(line);
@@ -276,12 +299,11 @@ public class Generator extends CracklBaseVisitor<Op>{
 		return new Operand.Reg(r);
 	}
 
-	/**
-	public Operand.Abs abs(int lineNumber)
+	public Operand.Target.Abs abs(int lineNumber)
 	{
+		return new Operand.Target.Abs(lineNumber);
 		
 	}
-	**/
 
 	private static Operand.Operator operator(Op.Operator operator)
 	{

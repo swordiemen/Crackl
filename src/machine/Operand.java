@@ -7,7 +7,12 @@ public class Operand {
 		Memaddr,
 		Target,
 		Operator,
-		Const;
+		Const,
+
+		//Jumps (absolute, relative, indirect/register)
+		Abs,
+		Rel,
+		Ind;
 	}
 	
 	public String name;
@@ -43,6 +48,38 @@ public class Operand {
 			super(Type.Operator, operator.toString());
 			this.operator = operator;
 		}
+	}
+	
+	public abstract static class Target extends Operand{
+		
+		public Target(Type t, String val){
+			super(t, val);
+		}
+		
+		@Override
+		public String toString()
+		{
+			return String.format("(%s %s)", this.type, this.name);
+		}
+		
+		public static class Abs extends Target{
+
+			public Abs(int line) {
+				super(Type.Abs, ""+line);
+			}
+		}
+		
+		public static class Rel extends Target{
+			public Rel(int rel) {
+				super(Type.Rel, ""+rel);
+			}
+		}
+		public static class Ind extends Target{
+			public Ind(Reg reg) {
+				super(Type.Ind, ""+reg);
+			}
+		}
+		
 	}
 	
 	public static class Reg extends Operand{

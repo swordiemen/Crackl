@@ -154,8 +154,13 @@ public class TypeChecker extends CracklBaseListener {
 		}
 	}
 
-	private boolean hasErrors() {
+	public boolean hasErrors() {
 		return this.errors.size() > 0;
+	}
+	
+	public ArrayList<String> getErrors()
+	{
+		return errors;
 	}
 
 	@Override

@@ -1,0 +1,25 @@
+Program {
+	int a = 0;
+	int b = 2;
+	boolean boolVal = false;
+	if(true && boolVal){
+		a = 2;
+		b = 5;
+	}else{
+		a = 3;
+		b = 8;
+	}
+	
+	if(false){
+		int never = 8;
+		print(never);
+	}
+	
+	if(true){
+		int always = 4;
+		print(always);
+	}
+	
+	print(a);
+	print(b);
+}
