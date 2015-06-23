@@ -31,10 +31,10 @@ public class Line {
 			return String.format("Debug: %s\n", debugText);
 		}else
 		{
-			StringBuilder b = new StringBuilder(instruction.name());
+			StringBuilder b = new StringBuilder(instruction.toString());
 			for (Operand operand : operands) {
-				b.append(" -> ");
-				b.append(operand.name);
+				b.append(" ");
+				b.append(operand.toString());
 			}
 				b.append("\n");
 			return b.toString();

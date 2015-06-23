@@ -23,10 +23,15 @@ public class Operand {
 		this(t, "unnamed_operand");
 	}
 	
+	public String toDebugString()
+	{
+		return String.format("Operand (type=%s, name=%s", type.toString(), name);
+	}
+	
 	@Override
 	public String toString()
 	{
-		return String.format("Operand (type=%s, name=%s", type.toString(), name);
+		return name;
 	}
 
 	public static class Operator extends Operand{
@@ -35,7 +40,7 @@ public class Operand {
 
 		public Operator(Op.Operator operator)
 		{
-			super(Type.Reg, operator.toString());
+			super(Type.Operator, operator.toString());
 			this.operator = operator;
 		}
 	}
@@ -48,6 +53,18 @@ public class Operand {
 		{
 			super(Type.Reg, reg.toString());
 			this.reg = reg;
+		}
+
+		@Override
+		public String toString()
+		{
+			if(name.equals(Op.Register.RegReserved.toString()))
+			{
+				return "RegZero";
+			}
+			else{
+				return reg.toString();
+			}
 		}
 	}
 	
@@ -80,8 +97,15 @@ public class Operand {
 
 		public MemAddr(int base, int offset)
 		{
-			super(Type.Memaddr, "@"+(base+offset));
+			super(Type.Memaddr, String.format("(MemAddr %d)", base+offset));
 			this.absAddress = base+offset;
+		}
+		
+		@Override
+		public String toString()
+		{
+			String result = String.format("(MemAddr %d)",absAddress);
+			return result;
 		}
 	}
 }
