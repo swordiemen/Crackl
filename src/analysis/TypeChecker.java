@@ -101,7 +101,7 @@ public class TypeChecker extends CracklBaseListener {
 	{
 		String var = ctx.ID().getText();
 		Scope curScope = scopes.get(scopes.size()-1);
-		if(curScope.getType(var) != null){
+		if(curScope.exists(var)){
 			addError(String.format("Variable '%s' already declared in this scope!", var));
 		}else{
 			Type lhsType = Type.get(ctx.type().getText());

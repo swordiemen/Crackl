@@ -20,6 +20,10 @@ public class Type {
 		this.type = t;
 	}
 	
+	/**
+	 * Returns the size of this Type.
+	 * @return <b>size</b> The size of this Type.
+	 */
 	public int getSize(){
 		switch(this.type){
 		case Bool:
@@ -39,9 +43,14 @@ public class Type {
 		return obj instanceof Type && ((Type) obj).type.equals(this.type);
 	}
 
-	public static Type get(String text)
+	/**
+	 * Returns a new Type from a String.
+	 * @param type
+	 * @return
+	 */
+	public static Type get(String type)
 	{
-		switch (text)
+		switch (type)
 			{
 			case "boolean":
 				return BOOL;
@@ -53,7 +62,7 @@ public class Type {
 				return ERR;
 
 			default:
-				throw new IllegalArgumentException(text);
+				throw new IllegalArgumentException(type);
 			}
 	}
 	
