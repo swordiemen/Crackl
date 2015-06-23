@@ -1,11 +1,22 @@
 .project
 .classpath
+.settings
 src/grammar/cracklGrammarBaseListener.java
 src/grammar/cracklGrammarLexer.java
 src/grammar/cracklGrammarListener.java
 src/grammar/cracklGrammarParser.java
 src/grammar/cracklGrammar.tokens
 src/grammar/cracklGrammarLexer.java
+src/grammar/Crackl.tokens
+src/grammar/CracklBaseListener.java
+src/grammar/CracklBaseVisitor.java
+src/grammar/cracklGrammarLexer.tokens
+src/grammar/CracklLexer.java
+src/grammar/CracklLexer.tokens
+src/grammar/CracklListener.java
+src/grammar/CracklParser.java
+src/grammar/CracklVisitor.java
+src/grammar/Crackl.tokens
 
 machine/bin
 machine/sprockell
