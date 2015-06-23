@@ -9,7 +9,6 @@ import grammar.CracklParser.CompExprContext;
 import grammar.CracklParser.ConstBoolExprContext;
 import grammar.CracklParser.ConstNumExprContext;
 import grammar.CracklParser.DeclContext;
-import grammar.CracklParser.FieldExprContext;
 import grammar.CracklParser.FuncCallContext;
 import grammar.CracklParser.FuncContext;
 import grammar.CracklParser.FuncExprContext;
@@ -19,10 +18,9 @@ import grammar.CracklParser.IfStatContext;
 import grammar.CracklParser.NotExprContext;
 import grammar.CracklParser.OrExprContext;
 import grammar.CracklParser.ParExprContext;
-import grammar.CracklParser.PrintStatContext;
+import grammar.CracklParser.PrintExprStatContext;
 import grammar.CracklParser.ProgramContext;
 import grammar.CracklParser.RetContext;
-import grammar.CracklParser.TargetContext;
 
 import java.util.ArrayList;
 
@@ -88,14 +86,12 @@ public class TypeChecker extends CracklBaseListener {
 	}
 
 	@Override
-	public void exitPrintStat(PrintStatContext ctx) {
-		String res = ctx.STRING().getText();
-		for(TerminalNode prc : ctx.ID()){
-			res += ", " + prc.getText() + " : " + getTypeByString(prc.getText());
-		}
+	public void exitPrintExprStat(PrintExprStatContext ctx)
+	{
+		String res = ctx.expr().getText();
 		System.out.println(res);
 	}
-
+	
 	@Override
 	public void exitDecl(DeclContext ctx)
 	{

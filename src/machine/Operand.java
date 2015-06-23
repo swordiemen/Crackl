@@ -60,7 +60,7 @@ public class Operand {
 		{
 			if(name.equals(Op.Register.RegReserved.toString()))
 			{
-				return "RegZero";
+				return Op.Register.Zero.toString();
 			}
 			else{
 				return reg.toString();
@@ -80,10 +80,18 @@ public class Operand {
 		
 		public Const(boolean b)
 		{
-			super(Type.Const, Boolean.toString(b));
+			super(Type.Const, Integer.toString(b ? 1 : 0));
 			value = b ? 1 : 0;
 		}
 	}
+
+
+	/**
+	public static class Abs extends Operand
+	{
+		public Abs
+	}
+	**/
 
 	/**
 	 * Absolute Memory location
@@ -97,14 +105,14 @@ public class Operand {
 
 		public MemAddr(int base, int offset)
 		{
-			super(Type.Memaddr, String.format("(MemAddr %d)", base+offset));
+			super(Type.Memaddr, String.format("(Addr %d)", base+offset));
 			this.absAddress = base+offset;
 		}
 		
 		@Override
 		public String toString()
 		{
-			String result = String.format("(MemAddr %d)",absAddress);
+			String result = String.format("(Addr %d)",absAddress);
 			return result;
 		}
 	}

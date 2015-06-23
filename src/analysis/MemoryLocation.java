@@ -73,4 +73,10 @@ public class MemoryLocation {
 	public void setVarOffset(int varOffset) {
 		this.varOffset = varOffset;
 	}
+	
+	@Override
+	public String toString()
+	{
+		return scopeOffset + ", "+varOffset;
+	}
 }

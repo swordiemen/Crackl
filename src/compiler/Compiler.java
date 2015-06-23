@@ -31,6 +31,7 @@ import analysis.TypeChecker;
 import grammar.CracklParser.*;
 
 public class Compiler {
+	public static final String PROGRAMS_PATH = "./machine";
 	private TypeChecker checker;
 	private Result result;
 
@@ -38,7 +39,7 @@ public class Compiler {
 		checker = new TypeChecker();
 	}
 
-	public void compile(String fileName){
+	public ArrayList<Line> compile(String fileName){
 		ParseTree tree = parse(fileName);
 		System.out.println(tree);
 		ParseTreeWalker walker = new ParseTreeWalker();
@@ -48,6 +49,7 @@ public class Compiler {
 		generator.visit(tree);
 		ArrayList<Line> program = generator.getProgram();
 		System.out.println(program);
+		return program;
 	}
 
 	public ParseTree parse(String fileName){		
@@ -63,32 +65,52 @@ public class Compiler {
 		ProgramContext tree = parser.program();
 		return tree;
 	}
+	
+	public String formatProgram(ArrayList<Line> program)
+	{
+		StringBuilder sb = new StringBuilder("import Sprockell.Sprockell\n"+
+                                                "import Sprockell.System\n"+
+                                                "import Sprockell.TypesEtc\n"+
+                                                "\n"+
+                                                "prog :: [Instruction]\n"+
+                                                "prog = [ \n"
+                                            );
+		final String TAB = "\t";
+		int i;
+		for (i = 0; i<program.size()-1; i++) {
+			sb.append(TAB);
+			sb.append(program.get(i).toString());
+			sb.append(",\n");
+		}
+			sb.append(TAB);
+			sb.append(program.get(i++));
+			
+			sb.append("\t]\n"+
+					"main = run 1 prog");
+		return sb.toString();
+		
+	}
 
 	public void write(String fileName, ArrayList<Line> program) throws IOException{
-		File file = new File(fileName);
+		if(!new File(PROGRAMS_PATH).mkdirs()){
+//			System.out.println("Failed to make directory: "+PROGRAMS_PATH);
+//			return;
+		}
+		File file = new File(PROGRAMS_PATH+"/"+fileName);
 		BufferedWriter bw = null;
 		bw = new BufferedWriter(new FileWriter(file));
 
-		StringBuilder sb = new StringBuilder("");
-		for (Line line : program) {
-			sb.append(line.toString());
-		}
-		bw.write(sb.toString());
+		bw.write(formatProgram(program));
 		bw.close();
 
 	}
 
 	public static void main(String[] args){
 		Compiler compiler = new Compiler();
-		compiler.compile("test1.crk");
-		ArrayList<Line> prog = new ArrayList<Line>();
-		prog.add(new Line("1: Do et program"));
-		prog.add(new Line("2: While something"));
-		prog.add(new Line("3: End that"));
+		ArrayList<Line> prog = compiler.compile("test1.crk");
 		try {
-			compiler.write("test.sprk", prog);
+			compiler.write("ptest.hs", prog);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}

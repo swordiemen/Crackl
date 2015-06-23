@@ -12,7 +12,8 @@ import grammar.CracklParser.ConstBoolExprContext;
 import grammar.CracklParser.ConstNumExprContext;
 import grammar.CracklParser.DeclContext;
 import grammar.CracklParser.IdExprContext;
-import grammar.CracklParser.PrintStatContext;
+import grammar.CracklParser.IfStatContext;
+import grammar.CracklParser.PrintExprStatContext;
 import grammar.CracklParser.ProgramContext;
 import grammar.CracklParser.StatContext;
 
@@ -51,7 +52,18 @@ public class Generator extends CracklBaseVisitor<Op>{
 		this.result = result;
 		freeRegisters.addAll(Op.gpRegisters);
 	}
-
+	
+	/**
+	@Override
+	public Op visitIfStat(IfStatContext ctx)
+	{
+		visit(ctx.expr());
+		Reg r1 = popReg();
+		add(Branch, r1, abs(elseLine));
+		return super.visitIfStat(ctx);
+	}
+	**/
+	
 	@Override
 	public Op visitAddExpr(AddExprContext ctx)
 	{
@@ -70,7 +82,9 @@ public class Generator extends CracklBaseVisitor<Op>{
 	{
 		Reg r1 = getFreeReg();
 		MemoryLocation loc = currentScope.getMemLoc(ctx.ID().getText());
+		System.out.println(loc);
 		add(Load, memAddr(loc.getScopeOffset(), loc.getVarOffset()), r1);
+		pushReg(r1);
 		return null;
 	}
 	
@@ -88,7 +102,7 @@ public class Generator extends CracklBaseVisitor<Op>{
 
 	private void freeReg(Reg r)
 	{
-		//System.out.println("Free : "+r.name);
+		System.out.println("Free : "+r.name);
 		assert(!regStack.contains(r.reg));
 		if(Op.gpRegisters.contains(r.reg))
 		{
@@ -103,9 +117,9 @@ public class Generator extends CracklBaseVisitor<Op>{
 	
 	private Reg getFreeReg()
 	{
-		//System.out.println("currently free : "+freeRegisters);
+		System.out.println("currently free : "+freeRegisters);
 		Register reg = freeRegisters.pop();
-		//System.out.println("Get: " +reg);
+		System.out.println("Get: " +reg);
 		return reg(reg);
 	}
 	
@@ -125,7 +139,7 @@ public class Generator extends CracklBaseVisitor<Op>{
 			r1 = reg(Zero);
 		}
 		MemoryLocation loc = currentScope.getMemLoc(ctx.ID().getText());
-		add(Write, r1, memAddr(loc.getScopeOffset(), loc.getVarOffset()));
+		add(Store, r1, memAddr(loc.getScopeOffset(), loc.getVarOffset()));
 		freeReg(r1);
 		return null;
 	}
@@ -155,19 +169,23 @@ public class Generator extends CracklBaseVisitor<Op>{
 		Reg r1 = popReg();
 		MemoryLocation loc = currentScope.getMemLoc(ctx.target().ID().getText());
 		//note: can be either some local scope, or the heap/global scope (allocated and will not be cleaned up)
-		add(Write, r1, memAddr(loc.getScopeOffset(), loc.getVarOffset()));
+		add(Store, r1, memAddr(loc.getScopeOffset(), loc.getVarOffset()));
 		freeReg(r1);
 		return null;
 	}
 	
 	@Override
-	public Op visitPrintStat(PrintStatContext ctx)
+	public Op visitPrintExprStat(PrintExprStatContext ctx)
 	{
-		String first = ctx.STRING().getText().substring(1, 2);
-		//System.out.println("print statement with: "+first);
-		Reg r1 = getFreeReg();
-		add(Const, constOp(first), r1);
+		int NUM_OFFSET_UTF16 = 48;
+		visit(ctx.expr());
+		Reg r1 = popReg();
+		Reg r2 = getFreeReg();
+		add(Const, constOp(""+NUM_OFFSET_UTF16), r2);
+		add(Compute, operator(Add), r1, r2, r1);
 		add(Write, r1, MemAddr.StdIO);
+		freeReg(r2);
+		freeReg(r1);
 		return null;
 	}
 	
@@ -194,6 +212,8 @@ public class Generator extends CracklBaseVisitor<Op>{
 		for (StatContext child: stats) {
 			visit(child);
 		}
+		
+		currentScope = currentScope.getScope();
 		return null;
 	}
 	
@@ -217,6 +237,10 @@ public class Generator extends CracklBaseVisitor<Op>{
 	{
 		for (ParseTree child : ctx.children) {
 			visit(child);
+		}
+		for(int i = 0; i<10; i++)
+		{
+			add(Nop);
 		}
 		add(EndProg);
 		return null;
@@ -251,6 +275,13 @@ public class Generator extends CracklBaseVisitor<Op>{
 	{
 		return new Operand.Reg(r);
 	}
+
+	/**
+	public Operand.Abs abs(int lineNumber)
+	{
+		
+	}
+	**/
 
 	private static Operand.Operator operator(Op.Operator operator)
 	{

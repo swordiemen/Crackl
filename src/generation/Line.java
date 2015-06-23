@@ -36,7 +36,6 @@ public class Line {
 				b.append(" ");
 				b.append(operand.toString());
 			}
-				b.append("\n");
 			return b.toString();
 		}
 	}

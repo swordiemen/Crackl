@@ -11,7 +11,7 @@ stat: type ID (ASSIGN expr)? SEMI         		#decl
                ID ASSIGN expr RPAR stat   		#forStat 
     | LCURL stat* RCURL                 		#blockStat
     | func										#funcStat
-    | PRINT LPAR STRING (COMMA ID)* RPAR SEMI 	#printStat
+    | PRINT LPAR expr RPAR SEMI 				#printExprStat
     ;
     
 func: retType ID LPAR params RPAR LCURL stat* ret? RCURL;    
