@@ -1,5 +1,7 @@
 package compiler;
 
+import generation.Generator;
+import generation.Line;
 import grammar.CracklLexer;
 import grammar.CracklParser;
 
@@ -8,6 +10,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
 
 import org.antlr.v4.runtime.ANTLRFileStream;
 import org.antlr.v4.runtime.ANTLRInputStream;
@@ -36,8 +39,13 @@ public class Compiler {
 	public void compile(String fileName){
 		ParseTree tree = parse(fileName);
 		System.out.println(tree);
-		new ParseTreeWalker().walk(checker, tree);
+		ParseTreeWalker walker = new ParseTreeWalker();
+		walker.walk(checker, tree);
 		result = checker.getResult();
+		Generator generator = new Generator(result);
+		generator.visit(tree);
+		ArrayList<Line> program = generator.getProgram();
+		System.out.println(program);
 	}
 	
 	public ParseTree parse(String fileName){		

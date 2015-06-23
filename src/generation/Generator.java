@@ -1,34 +1,51 @@
 package generation;
 
 import static machine.Op.Instruction.*;
-import static machine.Op.Operator.*;
+import static machine.Op.Operator.Add;
 import static machine.Op.Register.*;
 import grammar.CracklBaseVisitor;
-import grammar.CracklParser.*;
+import grammar.CracklParser.AddExprContext;
+import grammar.CracklParser.AndExprContext;
+import grammar.CracklParser.AssignStatContext;
+import grammar.CracklParser.BlockStatContext;
+import grammar.CracklParser.ConstBoolExprContext;
+import grammar.CracklParser.ConstNumExprContext;
+import grammar.CracklParser.DeclContext;
+import grammar.CracklParser.IdExprContext;
+import grammar.CracklParser.PrintStatContext;
+import grammar.CracklParser.ProgramContext;
+import grammar.CracklParser.StatContext;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Stack;
 
-import org.antlr.v4.runtime.ParserRuleContext;
-import org.antlr.v4.runtime.tree.ParseTree;
-
 import machine.Op;
-import machine.Op.Operator;
 import machine.Op.Register;
 import machine.Operand;
 import machine.Operand.Const;
 import machine.Operand.MemAddr;
 import machine.Operand.Reg;
 
+import org.antlr.v4.runtime.tree.ParseTree;
+
+import analysis.MemoryLocation;
+import analysis.Result;
+import analysis.Scope;
+
 public class Generator extends CracklBaseVisitor<Op>{
 	
-	public static final boolean DEBUG = true;
+	public static final boolean DEBUG = false;
 	ArrayList<Line> program = new ArrayList<Line>();
 	Stack<Register> regStack = new Stack<Register>();
 	Stack<Register> freeRegisters = new Stack<Register>();
 	Scope currentScope = null;
 	Result result = null;
+	
+	public ArrayList<Line> getProgram()
+	{
+		return program;
+	}
 	
 	public Generator(Result result){
 		this.result = result;
@@ -52,8 +69,9 @@ public class Generator extends CracklBaseVisitor<Op>{
 	public Op visitIdExpr(IdExprContext ctx)
 	{
 		Reg r1 = getFreeReg();
-		MemoryLocation loc = currentScope.findMemoryLocation(ctx.ID());
-		add(Load, memAddr(loc.baseAddress, loc.offset), r1);
+		MemoryLocation loc = currentScope.getMemLoc(ctx.ID().getText());
+		add(Load, memAddr(loc.getScopeOffset(), loc.getVarOffset()), r1);
+		return null;
 	}
 	
 	private Reg popReg()
@@ -70,8 +88,12 @@ public class Generator extends CracklBaseVisitor<Op>{
 
 	private void freeReg(Reg r)
 	{
+		//System.out.println("Free : "+r.name);
 		assert(!regStack.contains(r.reg));
-		freeRegisters.push(r.reg);
+		if(Op.gpRegisters.contains(r.reg))
+		{
+			freeRegisters.push(r.reg);
+		}
 	}
 	
 	private void pushReg(Reg r)
@@ -81,7 +103,10 @@ public class Generator extends CracklBaseVisitor<Op>{
 	
 	private Reg getFreeReg()
 	{
-		return reg(freeRegisters.pop());
+		//System.out.println("currently free : "+freeRegisters);
+		Register reg = freeRegisters.pop();
+		//System.out.println("Get: " +reg);
+		return reg(reg);
 	}
 	
 	// type ID (ASSIGN expr)? SEMI         		#decl
@@ -99,26 +124,28 @@ public class Generator extends CracklBaseVisitor<Op>{
 		{
 			r1 = reg(Zero);
 		}
-		MemoryLocation loc = currentScope.getMemoryLocation(ctx.ID());
-		add(Write, r1, memAddr(loc.baseAddress, loc.offset));
+		MemoryLocation loc = currentScope.getMemLoc(ctx.ID().getText());
+		add(Write, r1, memAddr(loc.getScopeOffset(), loc.getVarOffset()));
 		freeReg(r1);
 		return null;
 	}
 	
 	@Override
-	public Op visitConstExpr(ConstExprContext ctx)
+	public Op visitConstBoolExpr(ConstBoolExprContext ctx)
 	{
 		Reg r1 = getFreeReg();
-		if(ctx.BOOL() != null)
-		{
-			add(Const, constOp(ctx.BOOL().getText()), r1);
-		}else{
-			add(Const, constOp(ctx.NUM().getText()), r1);
-		}
+		add(Const, constOp(ctx.BOOL().getText()), r1);
 		pushReg(r1);
 		return null;
 	}
-	
+	@Override
+	public Op visitConstNumExpr(ConstNumExprContext ctx)
+	{
+		Reg r1 = getFreeReg();
+		add(Const, constOp(ctx.NUM().getText()), r1);
+		pushReg(r1);
+		return null;
+	}
 	
 	@Override
 	// target ASSIGN expr SEMI             		#assignStat
@@ -126,17 +153,18 @@ public class Generator extends CracklBaseVisitor<Op>{
 	{
 		visit(ctx.expr());
 		Reg r1 = popReg();
-		int memOffset = currentScope.getOffset(ctx.target().ID());
+		MemoryLocation loc = currentScope.getMemLoc(ctx.target().ID().getText());
 		//note: can be either some local scope, or the heap/global scope (allocated and will not be cleaned up)
-		add(Write, r1, memAddr(currentScope.getBaseAddress(), memOffset));
+		add(Write, r1, memAddr(loc.getScopeOffset(), loc.getVarOffset()));
+		freeReg(r1);
 		return null;
 	}
 	
 	@Override
 	public Op visitPrintStat(PrintStatContext ctx)
 	{
-		String first = ctx.STRING().getText().substring(1, 1);
-		System.out.println("print statement with: "+first);
+		String first = ctx.STRING().getText().substring(1, 2);
+		//System.out.println("print statement with: "+first);
 		Reg r1 = getFreeReg();
 		add(Const, constOp(first), r1);
 		add(Write, r1, MemAddr.StdIO);
@@ -147,7 +175,7 @@ public class Generator extends CracklBaseVisitor<Op>{
 	public Op visitBlockStat(BlockStatContext ctx)
 	{
 		Scope newScope = result.getScope(ctx);
-		assert(newScope.previousScope == this.currentScope);
+		assert(newScope.getScope() == this.currentScope);
 		this.currentScope = newScope;
 
 		List<StatContext> stats = ctx.stat();
@@ -190,6 +218,7 @@ public class Generator extends CracklBaseVisitor<Op>{
 		for (ParseTree child : ctx.children) {
 			visit(child);
 		}
+		add(EndProg);
 		return null;
 	}
 	
@@ -220,13 +249,12 @@ public class Generator extends CracklBaseVisitor<Op>{
 	
 	private static Reg reg(Register r)
 	{
-		return  new Reg(r);
+		return new Operand.Reg(r);
 	}
 
 	private static Operand.Operator operator(Op.Operator operator)
 	{
-		Operand o = new Operand(Operand.Type.Reg);
-		return o.new Operator(operator);
+		return new Operand.Operator(operator);
 	}
 
 	private static MemAddr memAddr(int base, int offset)
@@ -236,17 +264,16 @@ public class Generator extends CracklBaseVisitor<Op>{
 	
 	private static Const constOp(String s)
 	{
-		Operand o = new Operand(Operand.Type.Const);
 		if(s.equalsIgnoreCase("false"))
 		{
-			return o.new Const(false);
+			return new Operand.Const(false);
 		}
 		else if(s.equalsIgnoreCase("true"))
 		{
-			return o.new Const(true);
+			return new Operand.Const(true);
 		}else
 		{
-			return o.new Const(Integer.parseInt(s));
+			return new Operand.Const(Integer.parseInt(s));
 		}
 	}
 

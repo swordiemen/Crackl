@@ -29,7 +29,7 @@ public class Operand {
 		return String.format("Operand (type=%s, name=%s", type.toString(), name);
 	}
 
-	public class Operator extends Operand{
+	public static class Operator extends Operand{
 		
 		public final Op.Operator operator;
 
@@ -40,7 +40,7 @@ public class Operand {
 		}
 	}
 	
-	public class Reg extends Operand{
+	public static class Reg extends Operand{
 		
 		public final Op.Register reg;
 
@@ -51,7 +51,7 @@ public class Operand {
 		}
 	}
 	
-	public class Const extends Operand
+	public static class Const extends Operand
 	{
 		public final int value;
 		

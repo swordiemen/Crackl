@@ -1,9 +1,9 @@
 Program {
 	int a = 0;
 	int b = 2;
-	int lala = 2;
+	int lala;
 	int c;
-	int d;
+	int d=8;
 	int e;
 	boolean f;
 	{
@@ -17,6 +17,6 @@ Program {
 			}
 		}
 	}
-	print("HIER: ", a);
+	print("3", a);
 	
 }

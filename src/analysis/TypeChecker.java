@@ -50,7 +50,7 @@ public class TypeChecker extends CracklBaseListener {
 
 	@Override
 	public void enterProgram(ProgramContext ctx) {
-		scopes.add(new Scope(null));
+		
 	}
 
 	@Override
@@ -63,7 +63,13 @@ public class TypeChecker extends CracklBaseListener {
 
 	@Override
 	public void enterBlockStat(BlockStatContext ctx) {
-		Scope lastScope = scopes.get(scopes.size() - 1); 
+		Scope lastScope; 
+		if(scopes.size() == 0){
+			lastScope = null;
+		}else{
+			lastScope = scopes.get(scopes.size() - 1);
+		}
+		
 		Scope scope = new Scope(lastScope);
 		scopes.add(scope);
 	}
@@ -134,21 +140,21 @@ public class TypeChecker extends CracklBaseListener {
 			}
 			System.err.println("Build failed.");
 		}else{
-			result.addScope(ctx, scopes.get(0));	//there should be only 1 scope left, namely the global scope.
-			result.addNode(ctx);
+//			result.addScope(ctx, scopes.get(0));	//there should be only 1 scope left, namely the global scope.
+//			result.addNode(ctx);
 			System.out.println("Build succeeded without typecheck errors.");
-//			for(ParserRuleContext prc : result.getNodes()){		// testing 
-//				System.out.println("----------------" + prc.getText() + "----------------");
-//				if(result.getTypes().get(prc) != null){
-//					System.out.println("Type: " + result.getType(prc));
-//				}
-//				if(result.getOffsets().get(prc) != null){
-//					System.out.println("Offset: " + result.getOffset(prc));
-//				}
-//				if(result.getScopes().get(prc) != null){
-//					System.out.println("Scope base: " + result.getScope(prc).getBaseAddress());
-//				}
-//			}
+			for(ParserRuleContext prc : result.getNodes()){		// testing 
+				System.out.println("----------------" + prc.getText() + "----------------");
+				if(result.getTypes().get(prc) != null){
+					System.out.println("Type: " + result.getType(prc));
+				}
+				if(result.getOffsets().get(prc) != null){
+					System.out.println("Offset: " + result.getOffset(prc));
+				}
+				if(result.getScopes().get(prc) != null){
+					System.out.println("Scope base: " + result.getScope(prc).getBaseAddress());
+				}
+			}
 		}
 	}
 

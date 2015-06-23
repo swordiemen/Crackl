@@ -1,6 +1,6 @@
 grammar Crackl;
 
-program: PROGRAM_START LCURL stat+ RCURL;
+program: PROGRAM_START stat;
 
 stat: type ID (ASSIGN expr)? SEMI         		#decl
     | target ASSIGN expr SEMI             		#assignStat

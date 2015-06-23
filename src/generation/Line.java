@@ -22,5 +22,23 @@ public class Line {
 		isDebug = true;
 		debugText = s;
 	}
+	
+	@Override
+	public String toString()
+	{
+		if(isDebug)
+		{
+			return String.format("Debug: %s\n", debugText);
+		}else
+		{
+			StringBuilder b = new StringBuilder(instruction.name());
+			for (Operand operand : operands) {
+				b.append(" -> ");
+				b.append(operand.name);
+			}
+				b.append("\n");
+			return b.toString();
+		}
+	}
 
 }
