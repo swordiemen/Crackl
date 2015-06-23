@@ -3,35 +3,67 @@ import Sprockell.System
 import Sprockell.TypesEtc
 
 prog :: [Instruction]
-prog = [  
-		  Const 72 RegA
-		, Write RegA stdio
-
-		, Const 69 RegA
-		, Write RegA stdio
-
-		, Const 76 RegA
-		, Write RegA stdio
-
-		, Const 76 RegA
-		, Write RegA stdio
-
-		, Const 79 RegA
-		, Write RegA stdio
-
-		, Const 2 RegB
-		, Const 3 RegC
-		, Push RegB
-		, Push RegC
-		, Pop RegD
-		, Pop RegE
-		, Compute Mul RegD RegE RegA
-		, Const 48 RegB --number offset utf16
-		, Compute Add RegA RegB RegA
-		, Write RegA stdio
-
-
-        , EndProg
-	]
-
+prog = [ 
+	Push Zero,
+	Push Zero,
+	Push Zero,
+	Push Zero,
+	Push Zero,
+	Push Zero,
+	Push Zero,
+	Const 0 RegE,
+	Store RegE (Addr 0),
+	Const 2 RegE,
+	Store RegE (Addr 4),
+	Store Zero (Addr 8),
+	Store Zero (Addr 12),
+	Const 4 RegE,
+	Store RegE (Addr 16),
+	Store Zero (Addr 20),
+	Store Zero (Addr 24),
+	Push Zero,
+	Push Zero,
+	Const 0 RegE,
+	Store RegE (Addr 28),
+	Const 2 RegE,
+	Store RegE (Addr 32),
+	Push Zero,
+	Const 3 RegE,
+	Store RegE (Addr 36),
+	Push Zero,
+	Const 1 RegE,
+	Store RegE (Addr 40),
+	Load (Addr 40) RegE,
+	Const 48 RegD,
+	Compute Add RegE RegD RegE,
+	Write RegE (Addr 16777216),
+	Load (Addr 0) RegE,
+	Const 48 RegD,
+	Compute Add RegE RegD RegE,
+	Write RegE (Addr 16777216),
+	Load (Addr 4) RegE,
+	Const 1 RegD,
+	Compute Add RegD RegE RegD,
+	Store RegD (Addr 4),
+	Load (Addr 4) RegD,
+	Const 4 RegE,
+	Compute Add RegE RegD RegE,
+	Const 48 RegD,
+	Compute Add RegE RegD RegE,
+	Write RegE (Addr 16777216),
+	Load (Addr 16) RegE,
+	Const 48 RegD,
+	Compute Add RegE RegD RegE,
+	Write RegE (Addr 16777216),
+	Nop,
+	Nop,
+	Nop,
+	Nop,
+	Nop,
+	Nop,
+	Nop,
+	Nop,
+	Nop,
+	Nop,
+	EndProg	]
 main = run 1 prog

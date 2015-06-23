@@ -3,7 +3,7 @@ Program {
 	int b = 2;
 	int lala;
 	int c;
-	int d=8;
+	int d=4;
 	int e;
 	boolean f;
 	{
@@ -13,10 +13,13 @@ Program {
 			int d = 3;
 			{
 				boolean b=true;
+				print(b);
 					{}
 			}
 		}
 	}
-	print("3", a);
-	
+	print(a);
+	b = b+1;
+	print(b+4);
+	print(d);
 }
