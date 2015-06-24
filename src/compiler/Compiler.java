@@ -50,7 +50,12 @@ public class Compiler {
 		if(!checker.hasErrors()){
 			Result result = checker.getResult();
 			Generator generator = new Generator(result);
-			generator.visit(tree);
+			try{
+				generator.visit(tree);
+			}catch(Exception e){
+				System.out.println(formatProgram(generator.getProgram()));
+				e.printStackTrace();
+			}
 			ArrayList<Line> program = generator.getProgram();
 			System.out.println(program);
 			return program;
@@ -126,7 +131,7 @@ public class Compiler {
 	public static void main(String[] args){
 		Compiler compiler = new Compiler();
 		try {
-			ArrayList<Line> prog = compiler.compile("ifelse.crk");
+			ArrayList<Line> prog = compiler.compile("while.crk");
 			compiler.write("ptest.hs", prog);
 		} catch (IOException e) {
 			e.printStackTrace();
