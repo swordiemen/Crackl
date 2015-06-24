@@ -8,6 +8,7 @@ import grammar.CracklParser.AddExprContext;
 import grammar.CracklParser.AndExprContext;
 import grammar.CracklParser.AssignStatContext;
 import grammar.CracklParser.BlockStatContext;
+import grammar.CracklParser.CompExprContext;
 import grammar.CracklParser.ConstBoolExprContext;
 import grammar.CracklParser.ConstNumExprContext;
 import grammar.CracklParser.DeclContext;
@@ -16,6 +17,7 @@ import grammar.CracklParser.IfStatContext;
 import grammar.CracklParser.PrintExprStatContext;
 import grammar.CracklParser.ProgramContext;
 import grammar.CracklParser.StatContext;
+import grammar.CracklParser.WhileStatContext;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,8 +30,10 @@ import machine.Operand;
 import machine.Operand.Const;
 import machine.Operand.MemAddr;
 import machine.Operand.Reg;
+import oracle.jrockit.jfr.parser.ParseException;
 
 import org.antlr.v4.runtime.tree.ParseTree;
+import org.antlr.v4.runtime.tree.TerminalNode;
 
 import analysis.MemoryLocation;
 import analysis.Result;
@@ -83,6 +87,22 @@ public class Generator extends CracklBaseVisitor<Op>{
 	}
 	
 	@Override
+	public Op visitWhileStat(WhileStatContext ctx)
+	{
+		int evalLine = program.size();
+		visit(ctx.expr());
+		Reg continueReg = popReg(); 
+		freeReg(continueReg);//!!!!!!!
+		add(Compute, operator(Operator.Equal), continueReg, reg(Zero), continueReg);
+		int branchLine = program.size();
+		visit(ctx.stat()); //body
+		add(Jump, abs(evalLine));
+		int nextEnterLine = program.size();
+		addAt(branchLine, Branch, continueReg, abs(++nextEnterLine));
+		return null;
+	}
+	
+	@Override
 	public Op visitAddExpr(AddExprContext ctx)
 	{
 		visit(ctx.expr(0));
@@ -92,6 +112,38 @@ public class Generator extends CracklBaseVisitor<Op>{
 		add(Compute, operator(Add), r1, r2, r1);
 		freeReg(r2);
 		pushReg(r1);
+		return null;
+	}
+	
+	@Override
+	public Op visitCompExpr(CompExprContext ctx)
+	{
+		Operator operator;
+		if (ctx.EQ() != null) {
+			operator = Operator.Equal;
+		}
+		else if (ctx.LT() != null) {
+			operator = Operator.Lt;
+		}
+		else if (ctx.NE() != null) {
+			operator = Operator.NEq;
+		}
+		else if (ctx.GT() != null) {
+			operator = Operator.Gt;
+		}
+		else {
+			throw new NullPointerException("Comparator not found");
+		}
+
+		visit(ctx.expr(0));
+		Reg r1 = popReg();
+		visit(ctx.expr(1));
+		Reg r2 = popReg();
+
+		System.out.println("cmp : "+r1+" with "+r2);
+		add(Compute, operator(operator), r1, r2, r1);
+		pushReg(r1);
+		freeReg(r2);
 		return null;
 	}
 	
@@ -139,6 +191,13 @@ public class Generator extends CracklBaseVisitor<Op>{
 		Register reg = freeRegisters.pop();
 		System.out.println("Get: " +reg);
 		return reg(reg);
+	}
+	
+	@Override
+	public Op visit(ParseTree tree)
+	{
+		System.out.println("----- visiting : "+tree.getText());
+		return super.visit(tree);
 	}
 	
 	// type ID (ASSIGN expr)? SEMI         		#decl
@@ -191,6 +250,7 @@ public class Generator extends CracklBaseVisitor<Op>{
 		freeReg(r1);
 		return null;
 	}
+	
 	
 	@Override
 	public Op visitPrintExprStat(PrintExprStatContext ctx)
