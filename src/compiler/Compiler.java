@@ -1,5 +1,6 @@
 package compiler;
 
+import exception.TypeCheckException;
 import generation.Generator;
 import generation.Line;
 import grammar.CracklLexer;
@@ -24,8 +25,6 @@ import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import analysis.Result;
 import analysis.TypeChecker;
 
-import com.sun.org.apache.xalan.internal.xsltc.compiler.CompilerException;
-
 public class Compiler {
 	public static final String PROGRAMS_PATH = "./machine";
 	private TypeChecker checker;
@@ -40,9 +39,10 @@ public class Compiler {
 	/**
 	 * Takes the name of a file, and compiles it into a program that can be read by Sprockll.
 	 * @param fileName The name of the file where the code is written.
-	 * @throws CompilerException 
+	 * @return program The program created by the generator.
+	 * @throws TypeCheckException 
 	 */
-	public ArrayList<Line> compile(String fileName) throws CompilerException{
+	public ArrayList<Line> compile(String fileName) throws TypeCheckException{
 		ParseTree tree = parse(fileName);
 		System.out.println(tree);
 		ParseTreeWalker walker = new ParseTreeWalker();
@@ -60,7 +60,7 @@ public class Compiler {
 			System.out.println(program);
 			return program;
 		}else{
-			throw new CompilerException("Build failed (TypeChecker)");
+			throw new TypeCheckException("Build failed (TypeChecker)");
 		}
 	}
 
@@ -82,16 +82,16 @@ public class Compiler {
 		ProgramContext tree = parser.program();
 		return tree;
 	}
-	
+
 	public String formatProgram(ArrayList<Line> program)
 	{
 		StringBuilder sb = new StringBuilder("import Sprockell.Sprockell\n"+
-                                                "import Sprockell.System\n"+
-                                                "import Sprockell.TypesEtc\n"+
-                                                "\n"+
-                                                "prog :: [Instruction]\n"+
-                                                "prog = [ \n"
-                                            );
+				"import Sprockell.System\n"+
+				"import Sprockell.TypesEtc\n"+
+				"\n"+
+				"prog :: [Instruction]\n"+
+				"prog = [ \n"
+				);
 		final String TAB = "\t";
 		int i;
 		for (i = 0; i<program.size()-1; i++) {
@@ -99,13 +99,13 @@ public class Compiler {
 			sb.append(program.get(i).toString());
 			sb.append(",\n");
 		}
-			sb.append(TAB);
-			sb.append(program.get(i++));
-			
-			sb.append("\t]\n"+
-					"main = run 1 prog");
+		sb.append(TAB);
+		sb.append(program.get(i++));
+
+		sb.append("\t]\n"+
+				"main = run 1 prog");
 		return sb.toString();
-		
+
 	}
 
 	/**
@@ -116,8 +116,6 @@ public class Compiler {
 	 */
 	public void write(String fileName, ArrayList<Line> program) throws IOException{
 		if(!new File(PROGRAMS_PATH).mkdirs()){
-//			System.out.println("Failed t>>>>>>>o make directory: "+PROGRAMS_PATH);
-//			return;
 		}
 		File file = new File(PROGRAMS_PATH+"/"+fileName);
 		BufferedWriter bw = null;
@@ -125,7 +123,6 @@ public class Compiler {
 
 		bw.write(formatProgram(program));
 		bw.close();
-
 	}
 
 	public static void main(String[] args){
@@ -135,7 +132,7 @@ public class Compiler {
 			compiler.write("ptest.hs", prog);
 		} catch (IOException e) {
 			e.printStackTrace();
-		} catch (CompilerException e1) {
+		} catch (TypeCheckException e1) {
 			e1.printStackTrace();
 		}
 	}

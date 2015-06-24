@@ -67,3 +67,6 @@ Network Trash Folder
 Temporary Items
 .apdisk
 /bin/
+*.sprk
+test2.crk
+machine/ptest.hs

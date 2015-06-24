@@ -5,7 +5,7 @@ import java.util.Map;
 public class Type {
 
 	public enum Types {
-		Bool, Int, Err
+		Bool, Int, Err, Array
 	}
 	
 	
@@ -13,11 +13,19 @@ public class Type {
 	public static final Type BOOL = new Type(Types.Bool);
 	public static final Type INT = new Type(Types.Int);
 	public static final Type ERR = new Type(Types.Bool);
+	//protected Array array;
 
 	public Types type;
 
 	public Type(Types t) {
 		this.type = t;
+	}
+	public Type getTypeObj(){
+		return this;
+	}
+	
+	public Types getType(){
+		return type;
 	}
 	
 	/**
@@ -30,6 +38,8 @@ public class Type {
 			return Integer.SIZE/Byte.SIZE;
 		case Int:
 			return Integer.SIZE/Byte.SIZE;
+//		case Array:
+//			return array.getSize();
 		case Err:
 			return 0;
 		default:
@@ -39,10 +49,14 @@ public class Type {
 
 	@Override
 	public boolean equals(Object obj)
-	{
-		return obj instanceof Type && ((Type) obj).type.equals(this.type);
+	{	
+		return obj instanceof Type && ((Type) obj).type.equals(this.type) && (isArray() == ((Type) obj).isArray());	
 	}
 
+	public boolean isArray(){
+		return type == Types.Array;
+	}
+	
 	/**
 	 * Returns a new Type from a String.
 	 * @param type
@@ -78,5 +92,13 @@ public class Type {
 			return "Error in toString() of Type.java";
 		}
 	}
+	
+//	public void setArray(Array array) {
+//		this.array = array;
+//	}
+	
+//	public Array getArray(){
+//		return array;
+//	}
 
 }
