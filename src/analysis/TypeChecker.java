@@ -159,9 +159,10 @@ public class TypeChecker extends CracklBaseListener {
 			addError(String.format("Variable '%s' already declared in this scope!", var));
 		}else{
 			Array lhsType = new Array(Type.get(ctx.type().getText()));
-			lhsType.setLength(Integer.parseInt(ctx.NUM().getText()));
-			if (ctx.expr() != null) {
-				checkType(ctx.expr(), lhsType);
+			//TODO PUT THIS BACK IN!!!!!
+			//lhsType.setLength(Integer.parseInt(ctx.NUM().getText()));
+			if (ctx.expr(1) != null) {
+				checkType(ctx.expr(1), lhsType);
 			}
 			types.put(ctx, lhsType);
 			curScope.put(var, lhsType);

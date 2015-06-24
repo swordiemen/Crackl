@@ -1,0 +1,17 @@
+Program{
+	int size = 7;
+	int[size] a;
+	a[0] = 8;
+	a[1] = 2;
+	a[2] = 4;
+	a[3] = 9;
+
+	a[0] = 9;
+	
+	int i = 0;
+	while(i<size)
+	{
+		print(a[i]);
+		i = i+1;
+	}
+}

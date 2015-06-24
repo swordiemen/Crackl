@@ -3,8 +3,9 @@ grammar Crackl;
 program: PROGRAM_START stat;
 
 stat: type ID (ASSIGN expr)? SEMI     			#decl
-	| type LSQ NUM RSQ ID (ASSIGN expr)? SEMI	#arrayDecl 
+	| type LSQ expr RSQ ID (ASSIGN expr)? SEMI	#arrayDecl 
     | target ASSIGN expr SEMI             		#assignStat
+    | target LSQ expr RSQ ASSIGN expr SEMI      #arrayAssignStat
     | IF LPAR expr RPAR stat (ELSE stat)? 		#ifStat 
     | WHILE LPAR expr RPAR stat           		#whileStat 
     | FOR LPAR ID ASSIGN expr SEMI

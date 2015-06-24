@@ -128,7 +128,7 @@ public class Compiler {
 	public static void main(String[] args){
 		Compiler compiler = new Compiler();
 		try {
-			ArrayList<Line> prog = compiler.compile("nestedwhile.crk");
+			ArrayList<Line> prog = compiler.compile("arrays.crk");
 			compiler.write("ptest.hs", prog);
 		} catch (IOException e) {
 			e.printStackTrace();

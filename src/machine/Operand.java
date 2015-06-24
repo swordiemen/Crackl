@@ -1,7 +1,10 @@
 package machine;
 
+import machine.Operand.Addr;
+
 public class Operand {
 	
+
 	public static enum Type {
 		Reg,
 		Memaddr,
@@ -12,7 +15,7 @@ public class Operand {
 		//Jumps (absolute, relative, indirect/register)
 		Abs,
 		Rel,
-		Ind;
+		Ind, Addr, Deref;
 	}
 	
 	public String name;
@@ -137,12 +140,30 @@ public class Operand {
 	 */
 	public static class MemAddr extends Operand{
 		
-		public static final MemAddr StdIO = new MemAddr(0, 0x1000000);
+		public static final MemAddr StdIO = new MemAddr(0x1000000);
 		public final int absAddress;
 
-		public MemAddr(int base, int offset)
+		public MemAddr(int absolute)
 		{
-			super(Type.Memaddr, String.format("(Addr %d)", base+offset));
+			super(Type.Memaddr, String.format("(Addr %d)", absolute));
+			this.absAddress = absolute;
+		}
+		
+		@Override
+		public String toString()
+		{
+			String result = String.format("(Addr %d)",absAddress);
+			return result;
+		}
+	}
+
+	public static class Addr extends Operand{
+		
+		public final int absAddress;
+
+		public Addr(int base, int offset)
+		{
+			super(Type.Addr, String.format("(Addr %d)", base+offset));
 			this.absAddress = base+offset;
 		}
 		
@@ -153,5 +174,24 @@ public class Operand {
 			return result;
 		}
 	}
+
+	public static class Deref extends Operand{
+		
+		public final Reg reg;
+
+		public Deref(Reg reg)
+		{
+			super(Type.Deref, String.format("(Deref (%s))", reg.name));
+			this.reg = reg;
+		}
+		
+		@Override
+		public String toString()
+		{
+			String result = String.format("(Deref (%s))",reg.name);
+			return result;
+		}
+	}
+	
 }
 
