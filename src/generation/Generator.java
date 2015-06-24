@@ -30,10 +30,8 @@ import machine.Operand;
 import machine.Operand.Const;
 import machine.Operand.MemAddr;
 import machine.Operand.Reg;
-import oracle.jrockit.jfr.parser.ParseException;
 
 import org.antlr.v4.runtime.tree.ParseTree;
-import org.antlr.v4.runtime.tree.TerminalNode;
 
 import analysis.MemoryLocation;
 import analysis.Result;

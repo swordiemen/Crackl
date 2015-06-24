@@ -13,7 +13,7 @@ stat: type ID (ASSIGN expr)? SEMI     			#decl
     | LCURL stat* RCURL                 		#blockStat
     | func										#funcStat
     | PRINT LPAR expr RPAR SEMI 				#printExprStat
-    ;
+     ;
     
 func: retType ID LPAR params RPAR LCURL stat* ret? RCURL;    
 

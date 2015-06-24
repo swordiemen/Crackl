@@ -13,7 +13,7 @@ Program {
 			}
 			if(a == 3)
 			{
-				print b;
+				print(a);
 			}
 		}
 	}
