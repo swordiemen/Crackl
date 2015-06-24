@@ -45,6 +45,7 @@ public class Compiler {
 	/**
 	 * Takes the name of a file, and compiles it into a program that can be read by Sprockll.
 	 * @param fileName The name of the file where the code is written.
+	 * @return program The program created by the generator.
 	 */
 	public ArrayList<Line> compile(String fileName){
 		ParseTree tree = parse(fileName);
@@ -55,7 +56,7 @@ public class Compiler {
 		Generator generator = new Generator(result);
 		generator.visit(tree);
 		ArrayList<Line> program = generator.getProgram();
-		System.out.println(program);
+		//System.out.println(program);
 		return program;
 	}
 
@@ -120,12 +121,11 @@ public class Compiler {
 
 		bw.write(formatProgram(program));
 		bw.close();
-
 	}
 
 	public static void main(String[] args){
 		Compiler compiler = new Compiler();
-		ArrayList<Line> prog = compiler.compile("test1.crk");
+		ArrayList<Line> prog = compiler.compile("test2.crk");
 		try {
 			compiler.write("ptest.hs", prog);
 		} catch (IOException e) {

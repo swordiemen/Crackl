@@ -2,7 +2,8 @@ grammar Crackl;
 
 program: PROGRAM_START stat;
 
-stat: type ID (ASSIGN expr)? SEMI         		#decl
+stat: type ID (ASSIGN expr)? SEMI     			#decl
+	| type LSQ NUM RSQ ID (ASSIGN expr)? SEMI	#arrayDecl 
     | target ASSIGN expr SEMI             		#assignStat
     | IF LPAR expr RPAR stat (ELSE stat)? 		#ifStat 
     | WHILE LPAR expr RPAR stat           		#whileStat 
@@ -28,6 +29,9 @@ funcCall: ID LPAR expr RPAR;
 
 expr: expr DOT ID                   #fieldExpr
     | funcCall						#funcExpr
+    | LSQ (expr? | 
+    	expr (COMMA expr)*) RSQ		#arrayExpr
+    | ID LSQ expr RSQ				#arrayIndexExpr
     | NOT expr                      #notExpr
     | expr (PLUS | MINUS) expr      #addExpr
     | expr AND expr                 #andExpr
@@ -42,11 +46,14 @@ expr: expr DOT ID                   #fieldExpr
 INTTYPE: 'int';
 BOOLTYPE: 'boolean';
 
+
 BOOL: 'true' | 'false';
 
 PROGRAM_START: 'Program';
 LCURL: '{';
 RCURL: '}'; 
+LSQ: '[';
+RSQ: ']';
 DOT: '.';
 NOT: '!';
 PLUS: '+';

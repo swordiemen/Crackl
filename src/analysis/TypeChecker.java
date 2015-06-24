@@ -3,6 +3,9 @@ package analysis;
 import grammar.CracklBaseListener;
 import grammar.CracklParser.AddExprContext;
 import grammar.CracklParser.AndExprContext;
+import grammar.CracklParser.ArrayDeclContext;
+import grammar.CracklParser.ArrayExprContext;
+import grammar.CracklParser.ArrayIndexExprContext;
 import grammar.CracklParser.AssignStatContext;
 import grammar.CracklParser.BlockStatContext;
 import grammar.CracklParser.CompExprContext;
@@ -47,8 +50,28 @@ public class TypeChecker extends CracklBaseListener {
 	}
 
 	@Override
-	public void enterProgram(ProgramContext ctx) {
-		
+	public void exitArrayExpr(ArrayExprContext ctx) {
+		Type type = types.get(ctx.expr(0));
+		int size = type.getSize();
+		boolean correct = true;
+		for(int i = 1; i < ctx.expr().size(); i++){
+			if(!checkType(ctx.expr(i), type)){
+				correct = false;
+				type = Type.ERR;
+				break;
+			}
+			size += types.get(ctx.expr(i)).getSize();
+		}
+
+		if(correct){		
+			Array arr = new Array(type);
+			arr.setSize(size);
+			arr.setLength(ctx.expr().size());
+			types.put(ctx, arr);
+			System.out.println(types.get(ctx).getSize());
+		}else{
+			types.put(ctx, Type.ERR);
+		}
 	}
 
 	@Override
@@ -67,9 +90,25 @@ public class TypeChecker extends CracklBaseListener {
 		}else{
 			lastScope = scopes.get(scopes.size() - 1);
 		}
-		
+
 		Scope scope = new Scope(lastScope);
 		scopes.add(scope);
+	}
+
+	@Override
+	public void exitArrayIndexExpr(ArrayIndexExprContext ctx) {
+		String idString = ctx.ID().getText();
+		if(getTypeByString(idString) instanceof Array){
+			Array idType = (Array) getTypeByString(idString);
+			if(!checkType(ctx.expr(), Type.INT)){
+				addError("Index of an array must be an integer.");
+			}else{
+				types.put(ctx, idType.getTypeObj());
+			}
+		}else{
+			addError(String.format("Cannot get a value from '%s', since it is not an array.", ctx.ID().getText()));
+			types.put(ctx, Type.ERR);
+		}
 	}
 
 	@Override
@@ -91,7 +130,7 @@ public class TypeChecker extends CracklBaseListener {
 		String res = ctx.expr().getText();
 		System.out.println(res);
 	}
-	
+
 	@Override
 	public void exitDecl(DeclContext ctx)
 	{
@@ -113,9 +152,33 @@ public class TypeChecker extends CracklBaseListener {
 	}
 
 	@Override
+	public void exitArrayDecl(ArrayDeclContext ctx) {
+		String var = ctx.ID().getText();
+		Scope curScope = scopes.get(scopes.size()-1);
+		if(curScope.getType(var) != null){
+			addError(String.format("Variable '%s' already declared in this scope!", var));
+		}else{
+			Array lhsType = new Array(Type.get(ctx.type().getText()));
+			lhsType.setLength(Integer.parseInt(ctx.NUM().getText()));
+			if (ctx.expr() != null) {
+				checkType(ctx.expr(), lhsType);
+			}
+			types.put(ctx, lhsType);
+			curScope.put(var, lhsType);
+			result.addType(ctx, lhsType);
+			result.addOffset(ctx, curScope.getOffset(var));
+			result.addNode(ctx);
+		}
+	}
+
+
+
+	@Override
 	public void exitIdExpr(IdExprContext ctx)
 	{
-		if(!initializedVars.contains(ctx)){
+		Scope curScope = scopes.get(scopes.size() - 1);
+		if(!curScope.exists(ctx.getText())){
+			//TODO do something with this
 			//addError("Variable " + ctx + "is not initialized.");
 		}
 	}
@@ -136,21 +199,29 @@ public class TypeChecker extends CracklBaseListener {
 			}
 			System.err.println("Build failed.");
 		}else{
-//			result.addScope(ctx, scopes.get(0));	//there should be only 1 scope left, namely the global scope.
-//			result.addNode(ctx);
+			//			result.addScope(ctx, scopes.get(0));	//there should be only 1 scope left, namely the global scope.
+			//			result.addNode(ctx);
 			System.out.println("Build succeeded without typecheck errors.");
-			for(ParserRuleContext prc : result.getNodes()){		// testing 
+			for(ParserRuleContext prc : result.getNodes()){
 				System.out.println("----------------" + prc.getText() + "----------------");
-				if(result.getTypes().get(prc) != null){
-					System.out.println("Type: " + result.getType(prc));
-				}
-				if(result.getOffsets().get(prc) != null){
-					System.out.println("Offset: " + result.getOffset(prc));
-				}
-				if(result.getScopes().get(prc) != null){
-					System.out.println("Scope base: " + result.getScope(prc).getBaseAddress());
+				Type type = types.get(prc);
+				System.out.println(type);
+				if(type instanceof Array){
+					System.out.println("HEYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY");
 				}
 			}
+			//			for(ParserRuleContext prc : result.getNodes()){		// testing 
+			//				System.out.println("----------------" + prc.getText() + "----------------");
+			//				if(result.getTypes().get(prc) != null){
+			//					System.out.println("Type: " + result.getType(prc));
+			//				}
+			//				if(result.getOffsets().get(prc) != null){
+			//					System.out.println("Offset: " + result.getOffset(prc));
+			//				}
+			//				if(result.getScopes().get(prc) != null){
+			//					System.out.println("Scope base: " + result.getScope(prc).getBaseAddress());
+			//				}
+			//			}
 		}
 	}
 
@@ -263,7 +334,13 @@ public class TypeChecker extends CracklBaseListener {
 		boolean res = true;
 		Type type = getType(ctx);
 		if (!type.equals(expected)) {
+			if(expected instanceof Array && type instanceof Array){
+				if(((Array) expected).getLength() != ((Array) type).getLength()){
+					addError(ctx, "Exptected array of length " + ((Array) expected).getLength() + ", got an array with length " + ((Array) type).getLength() + ".");
+				}
+			}
 			addError(ctx, "Expected type " + expected + ", got " + type);
+
 			res = false;
 		}
 		return res;
