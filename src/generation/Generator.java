@@ -63,43 +63,63 @@ public class Generator extends CracklBaseVisitor<Op>{
 	{
 		visit(ctx.expr());
 		Reg r1 = popReg();
-		int branchLine = program.size();
+		add(Compute, operator(Operator.Equal), r1, reg(Zero), r1);
+		freeReg(r1); //TODO: Maybe free it AFTER some other operation
+		int branchLine = addPlaceholder();
 		if(ctx.ELSE()!=null)
 		{
-			visit(ctx.stat(1)); // may be a block or a single stat
-			int ifEndLine = program.size(); // should get the jump to fake node
+			System.out.println("FOUND IFELSE!!!");
+			
 			visit(ctx.stat(0)); // may be a block or a single stat
+			int ifEndLine = addPlaceholder("ifEnd");
+			visit(ctx.stat(1)); // may be a block or a single stat
 			int nextEnterLine = program.size(); // next block in cfg
-			nextEnterLine += 2;// ++ because of insertion of Jump and Branch
-			int elseLine = ifEndLine + 2;
-			addAt(ifEndLine, Jump, abs(nextEnterLine));
-			addAt(branchLine, Branch, r1, abs(elseLine));
+			changeAt(ifEndLine, Jump, abs(nextEnterLine));
+			int elseLine = ifEndLine + 1; //skip over the 'jump'
+			changeAt(branchLine, Branch, r1, abs(elseLine));
 		}else{
+			System.out.println("FOUND IF!!!");
 			visit(ctx.stat(0)); 
 			int nextEnterLine = program.size();
 			//negation of the expression value (because Branch jumps if true). This way it's easier to implement the control flow.
-			addAt(branchLine++, Compute, operator(Operator.Equal), r1, reg(Zero), r1);
-			addAt(branchLine, Branch, r1, abs(nextEnterLine));
+			changeAt(branchLine, Branch, r1, abs(nextEnterLine));
 		}
 		
-		freeReg(r1);
 		return null;
+	}
+	
+	public void changeAt(int lineNr, Op.Instruction op, Operand... args){
+		if(program.get(lineNr) instanceof Label){
+			program.set(lineNr, new Line(op, args));
+		}else{
+			throw new ClassCastException("changeAt: NOT A LABEL!!!");
+		}
+	}
+
+	public int addPlaceholder(String s ){
+		int location = program.size();
+		program.add(new Label(s));
+		return location;
+	}
+	
+	public int addPlaceholder(){
+		return addPlaceholder("Placeholder!");
 	}
 	
 	@Override
 	public Op visitWhileStat(WhileStatContext ctx)
 	{
-		int evalLine = program.size();
-		visit(ctx.expr());
-		Reg continueReg = popReg(); 
-		freeReg(continueReg);//!!!!!!!
-		add(Compute, operator(Operator.Equal), continueReg, reg(Zero), continueReg);
-		int branchLine = program.size();
-		visit(ctx.stat()); //body
-		add(Jump, abs(evalLine));
-		int nextEnterLine = program.size();
-		addAt(branchLine, Branch, continueReg, abs(++nextEnterLine));
-		return null;
+        int evalLine = program.size();
+        visit(ctx.expr());
+        Reg continueReg = popReg(); 
+        add(Compute, operator(Operator.Equal), continueReg, reg(Zero), continueReg);
+        freeReg(continueReg);
+        int branchLine = addPlaceholder("whileBranch");
+        visit(ctx.stat()); //body
+        add(Jump, abs(evalLine));
+        int nextEnterLine = program.size();
+        changeAt(branchLine, Branch, continueReg, abs(nextEnterLine));
+        return null;
 	}
 	
 	@Override

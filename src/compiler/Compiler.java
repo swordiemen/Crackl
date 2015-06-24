@@ -131,7 +131,7 @@ public class Compiler {
 	public static void main(String[] args){
 		Compiler compiler = new Compiler();
 		try {
-			ArrayList<Line> prog = compiler.compile("while.crk");
+			ArrayList<Line> prog = compiler.compile("nestedwhile.crk");
 			compiler.write("ptest.hs", prog);
 		} catch (IOException e) {
 			e.printStackTrace();
