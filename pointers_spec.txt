@@ -1,0 +1,21 @@
+	//rhs no expressions, only ID's
+	// #int b => 3
+
+	// allowed: 
+	// #int b = 1008
+	
+	// copy b to c
+	// int c = @1008
+	
+	ex. program:
+
+	int a = 5;
+	int b = 3;
+	#int p1 => a;
+	#int p2 => b;
+	int res = @p1 + @p2
+	#int p_res => res;
+	
+	int res = @p1 + @p2
+	
+	assert(@p_res == res)
