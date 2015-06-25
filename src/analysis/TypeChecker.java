@@ -1,29 +1,7 @@
 package analysis;
 
 import grammar.CracklBaseListener;
-import grammar.CracklParser.AddExprContext;
-import grammar.CracklParser.AndExprContext;
-import grammar.CracklParser.ArrayDeclContext;
-import grammar.CracklParser.ArrayExprContext;
-import grammar.CracklParser.ArrayIndexExprContext;
-import grammar.CracklParser.AssignStatContext;
-import grammar.CracklParser.BlockStatContext;
-import grammar.CracklParser.CompExprContext;
-import grammar.CracklParser.ConstBoolExprContext;
-import grammar.CracklParser.ConstNumExprContext;
-import grammar.CracklParser.DeclContext;
-import grammar.CracklParser.FuncCallContext;
-import grammar.CracklParser.FuncContext;
-import grammar.CracklParser.FuncExprContext;
-import grammar.CracklParser.FuncStatContext;
-import grammar.CracklParser.IdExprContext;
-import grammar.CracklParser.IfStatContext;
-import grammar.CracklParser.NotExprContext;
-import grammar.CracklParser.OrExprContext;
-import grammar.CracklParser.ParExprContext;
-import grammar.CracklParser.PrintExprStatContext;
-import grammar.CracklParser.ProgramContext;
-import grammar.CracklParser.RetContext;
+import grammar.CracklParser.*;
 
 import java.util.ArrayList;
 
@@ -110,6 +88,18 @@ public class TypeChecker extends CracklBaseListener {
 			types.put(ctx, Type.ERR);
 		}
 	}
+	
+	public void exitArrayAssignStat(ArrayAssignStatContext ctx) {
+		Type type = getType(ctx.target());
+		if(!(type instanceof Array)){
+			addError("Identifier " + ctx.target().getText() + " is not an array.");
+		}else{
+			Array arrType = (Array) type;
+			Type typeOfArray = arrType.getTypeObj();
+			checkType(ctx.expr(0), Type.INT);
+			checkType(ctx.expr(1), typeOfArray);
+		}
+	}
 
 	@Override
 	public void exitAssignStat(AssignStatContext ctx)
@@ -139,15 +129,29 @@ public class TypeChecker extends CracklBaseListener {
 		if(curScope.getType(var) != null){
 			addError(String.format("Variable '%s' already declared in this scope!", var));
 		}else{
-			Type lhsType = Type.get(ctx.type().getText());
-			if (ctx.expr() != null) {
-				checkType(ctx.expr(), lhsType);
+			if(ctx.ARRAY() == null){	//declaring a normal variable
+				Type lhsType = Type.get(ctx.type().getText());
+				if (ctx.expr() != null) {
+					checkType(ctx.expr(), lhsType);
+				}
+				types.put(ctx, lhsType);
+				curScope.put(var, lhsType);
+				result.addType(ctx, lhsType);
+				result.addOffset(ctx, curScope.getOffset(var));
+				result.addNode(ctx);
+			}else{	//declaring an array
+				//when declaring an array without a given size, an expression of type Array should be given.
+				if(ctx.expr() == null || !(types.get(ctx.expr()) instanceof Array)){
+					addError("Array without decleration expression should have an initial array.");
+				}else{
+					Array rhsType = (Array) types.get(ctx.expr());
+					types.put(ctx, rhsType);
+					curScope.put(var, rhsType);
+					result.addType(ctx, rhsType);
+					result.addOffset(ctx, curScope.getOffset(var));
+					result.addNode(ctx);
+				}
 			}
-			types.put(ctx, lhsType);
-			curScope.put(var, lhsType);
-			result.addType(ctx, lhsType);
-			result.addOffset(ctx, curScope.getOffset(var));
-			result.addNode(ctx);
 		}
 	}
 
@@ -161,14 +165,15 @@ public class TypeChecker extends CracklBaseListener {
 			Array lhsType = new Array(Type.get(ctx.type().getText()));
 			//TODO PUT THIS BACK IN!!!!!
 			//lhsType.setLength(Integer.parseInt(ctx.NUM().getText()));
-			if (ctx.expr(1) != null) {
-				checkType(ctx.expr(1), lhsType);
+			if(!checkType(ctx.expr(), Type.INT)){
+				addError("Array should be declared with an expression of type integer.");
+			}else{
+				types.put(ctx, lhsType);
+				curScope.put(var, lhsType);
+				result.addType(ctx, lhsType);
+				result.addOffset(ctx, curScope.getOffset(var));
+				result.addNode(ctx);
 			}
-			types.put(ctx, lhsType);
-			curScope.put(var, lhsType);
-			result.addType(ctx, lhsType);
-			result.addOffset(ctx, curScope.getOffset(var));
-			result.addNode(ctx);
 		}
 	}
 
@@ -229,7 +234,7 @@ public class TypeChecker extends CracklBaseListener {
 	public boolean hasErrors() {
 		return this.errors.size() > 0;
 	}
-	
+
 	public ArrayList<String> getErrors()
 	{
 		return errors;

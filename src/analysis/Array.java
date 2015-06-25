@@ -9,14 +9,11 @@ public class Array extends Type {
 	public Array(Types t) {
 		super(Types.Array);
 		this.type = new Type(t);
-		//super.setArray(this);
 	}
 	
 	public Array(Type t){
 		super(t.getType());
 		this.type = t;
-		//super.setArray(this);
-		//t.setArray(this);
 	}
 	
 	public void setType(Type t){
@@ -51,7 +48,7 @@ public class Array extends Type {
 	
 	@Override
 	public int getSize() {
-		return size;
+		return Integer.SIZE/Byte.SIZE;
 	}
 	
 	public String toString(){
