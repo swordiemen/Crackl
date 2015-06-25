@@ -1,6 +1,8 @@
 package analysis;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class Scope {
@@ -8,6 +10,7 @@ public class Scope {
 	private Map<String, Type> types;
 	private Map<String, Integer> offsets;
 	private Scope prevScope;
+	private ArrayList<String> initVars;
 
 	/**
 	 * Creates a new Scope with a given previous scope.
@@ -16,6 +19,7 @@ public class Scope {
 	public Scope(Scope s){
 		types = new HashMap<String, Type>();
 		offsets = new HashMap<String, Integer>();
+		initVars = new ArrayList<String>();
 		prevScope = s;
 	}
 
@@ -25,6 +29,31 @@ public class Scope {
 	 */
 	public Scope getScope(){
 		return prevScope;
+	}
+	
+	/**
+	 * Returns the list of initialized variables of this scope.
+	 * @return initVars
+	 */
+	public ArrayList<String> getInitVars(){
+		return initVars;
+	}
+	
+	/**
+	 * Returns true if <code>var</code> is initialized in this scope.
+	 * @param var The variable to be checked.
+	 * @return bool 
+	 */
+	public boolean isInitialized(String var){
+		return initVars.contains(var);
+	}
+	
+	/**
+	 * Adds an initialized variable to this Scope.
+	 * @param var The variable to be added.
+	 */
+	public void addInitVar(String var){
+		initVars.add(var);
 	}
 
 	/**
