@@ -2,7 +2,8 @@ grammar Crackl;
 
 program: PROGRAM_START stat;
 
-stat: type ARRAY? ID  (ASSIGN expr)? SEMI  		#decl
+stat: type ID  (ASSIGN expr)? SEMI  		#decl
+	| type ARRAY ID ASSIGN LSQ expr (COMMA expr)* RSQ SEMI			#arrayDeclInit
 	| type LSQ expr RSQ ID SEMI					#arrayDecl 
     | target ASSIGN expr SEMI             		#assignStat
     | target LSQ expr RSQ ASSIGN expr SEMI      #arrayAssignStat
@@ -30,8 +31,6 @@ funcCall: ID LPAR expr RPAR;
 
 expr: expr DOT ID                   #fieldExpr
     | funcCall						#funcExpr
-    | LSQ (expr? | 
-    	expr (COMMA expr)*) RSQ		#arrayExpr
     | ID LSQ expr RSQ				#arrayIndexExpr
     | NOT expr                      #notExpr
     | expr (PLUS | MINUS) expr      #addExpr

@@ -8,6 +8,7 @@ import grammar.CracklParser.AddExprContext;
 import grammar.CracklParser.AndExprContext;
 import grammar.CracklParser.ArrayAssignStatContext;
 import grammar.CracklParser.ArrayDeclContext;
+import grammar.CracklParser.ArrayDeclInitContext;
 import grammar.CracklParser.ArrayIndexExprContext;
 import grammar.CracklParser.AssignStatContext;
 import grammar.CracklParser.BlockStatContext;
@@ -61,35 +62,101 @@ public class Generator extends CracklBaseVisitor<Op>{
 	}
 	
 	@Override
+	public Op visitArrayDeclInit(ArrayDeclInitContext ctx)
+	{
+		Reg rOne = getFreeReg();
+		add(Const, constOp(1), rOne);
+
+		Reg rArrayPointer = addGetHeappointer();
+		MemoryLocation loc = currentScope.getMemLoc(ctx.ID().getText());
+		add(Store, rArrayPointer, addr(loc.getScopeOffset(), loc.getVarOffset())); //store start address on stack at variable
+		
+		int i = 0;
+		for(i = 0; i<ctx.expr().size(); i++){
+			visit(ctx.expr(i));
+			Reg rExpr = popReg();
+			add(Write, rExpr, deref(rArrayPointer));
+			add(Compute, operator(Add), rOne, rOne, rArrayPointer);
+			freeReg(rExpr);
+		}
+		
+		//Write back rArrayPointer to the heapEnd pointer
+		add(Write, rArrayPointer, memAddr(MEMADDR_HEAP_POINTER));
+
+		freeReg(rOne);
+		freeReg(rArrayPointer);
+		return null;
+	}
+	
+	@Override
 	public Op visitArrayDecl(ArrayDeclContext ctx)
 	{
-		final int MEMADDR_HEAP_POINTER = 1000; //TODO: some nice place
-		visit(ctx.expr(0)); //write the to be allocated size to register
+		visit(ctx.expr()); //write the to be allocated size to register
 		Reg rArraySize = popReg();
-		Reg rHeapPointer = getFreeReg();
+		addAllocateArray(rArraySize, ctx.ID().getText());
+		return null;
+	}
+	
+	/**
+	 * Add instructions to retrieve the base address of some array, given a variable name
+	 * Leaks a register!
+	 * @param variable
+	 * @return register containing the base address (on the heap) of an array
+	 */
+	private Reg addGetArrayPointer(String variable){
+		MemoryLocation loc = currentScope.getMemLoc(variable);
+		Reg rArrayPointer = getFreeReg();
+		add(Read, memAddr(loc.getScopeOffset()+loc.getVarOffset()));
+		add(Receive, rArrayPointer);
+		return rArrayPointer;
+	}
 
+	/**
+	 * Adds instructions to allocate an array on the heap
+	 * Note: it consumes a registers, which is free'd implicitly!
+	 * @param rArraySize - Register containing the size of the array
+	 * @param variableName - Where (on the stack) to store the array starting pointer
+	 */
+	private void addAllocateArray(Reg rArraySize, String variableName)
+	{
 		//Retrieve heappointer
-		add(Read, memAddr(MEMADDR_HEAP_POINTER));
-		add(Receive, rHeapPointer);
+		Reg rHeapPointer = addGetHeappointer();
 		
 		//Store current heappointer at at variable (on the stack)
-		MemoryLocation loc = currentScope.getMemLoc(ctx.ID().getText());
-		System.out.println("ArrayDeclaration: getMemLoc : "+ctx.ID().getText() + " returned "+loc);
+		MemoryLocation loc = currentScope.getMemLoc(variableName);
 		add(Store, rHeapPointer, addr(loc.getScopeOffset(), loc.getVarOffset()));
 		
 		//Increase and write back changed heappointer
+		addAllocate(rArraySize, rHeapPointer);
+	}
+	
+	
+	// Location of the heap pointer (at end of heap)
+	final int MEMADDR_HEAP_POINTER = 1000; // TODO: some nice place
+
+	/**
+	 * Add instructions to put the current heap pointer (end of heap) in a register
+	 * @return register containing the read pointer
+	 */
+	private Reg addGetHeappointer(){
+		Reg rHeapPointer = getFreeReg();
+		add(Read, memAddr(MEMADDR_HEAP_POINTER));
+		add(Receive, rHeapPointer);
+		return rHeapPointer;
+	}
+	
+	/**
+	 * Increments and writes back the heap pointer
+	 * Note: it consumes two registers, both of which are free'd implicitly
+	 * @param rArraySize - Register containing the size of the array
+	 * @param rHeapPointer - Register containing the current end of the heap
+	 */
+	private void addAllocate(Reg rArraySize, Reg rHeapPointer)
+	{
 		add(Compute, operator(Add), rArraySize, rHeapPointer, rHeapPointer);
 		add(Write, rHeapPointer, memAddr(MEMADDR_HEAP_POINTER));//maybe TODO: test and set?
-
-		if(ctx.expr(1) != null)
-		{
-			
-		}
-		
 		freeReg(rArraySize);
 		freeReg(rHeapPointer);
-		
-		return null;
 	}
 	
 	@Override
@@ -105,7 +172,6 @@ public class Generator extends CracklBaseVisitor<Op>{
 		//Get array base address
 		Reg rHeapPointer = getFreeReg();
 		MemoryLocation loc = currentScope.getMemLoc(ctx.target().ID().getText());
-		System.out.println("ArrayAssign: getMemLoc : "+ctx.target().ID().getText() + " returned "+loc);
 		add(Load, addr(loc.getScopeOffset(), loc.getVarOffset()), rHeapPointer);
 		
 		//Add array offset with array base 
@@ -123,18 +189,19 @@ public class Generator extends CracklBaseVisitor<Op>{
 	@Override
 	public Op visitArrayIndexExpr(ArrayIndexExprContext ctx)
 	{
-		System.out.println("AAAAAAAAAAAAAA");
-		Reg rHeapPointer = getFreeReg();
+		visit(ctx.expr());
+		Reg regIndex = popReg();
+
+		Reg rArrayPointer = getFreeReg();
 		MemoryLocation loc = currentScope.getMemLoc(ctx.ID().getText());
-		add(Load, addr(loc.getScopeOffset(), loc.getVarOffset()), rHeapPointer);
-		add(Read, deref(rHeapPointer));
+		add(Load, addr(loc.getScopeOffset(), loc.getVarOffset()), rArrayPointer);
+		add(Compute, operator(Add), regIndex, rArrayPointer, regIndex);
 
-		//variable switch for readability, still same register...
-		freeReg(rHeapPointer); 
-		Reg receiveReg = getFreeReg();
+		add(Read, deref(regIndex));
+		add(Receive, rArrayPointer);
 
-		add(Receive, receiveReg);
-		pushReg(receiveReg);
+		pushReg(rArrayPointer); //is actually rReceiveValue...
+		freeReg(regIndex);
 		return null;
 	}
 	
@@ -504,6 +571,13 @@ public class Generator extends CracklBaseVisitor<Op>{
 		}else
 		{
 			return new Operand.Const(Integer.parseInt(s));
+		}
+	}
+
+	private static Const constOp(int i)
+	{
+		{
+			return new Operand.Const(i);
 		}
 	}
 	
