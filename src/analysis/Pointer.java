@@ -16,7 +16,8 @@ public class Pointer extends Type{
 	
 	@Override
 	public int getSize(){
-		return size;
+		//return size;
+		return 1;
 	}
 	
 	public void setSize(int s){
@@ -36,5 +37,10 @@ public class Pointer extends Type{
 	@Override
 	public boolean isPointer(){
 		return true;
+	}
+	
+	@Override
+	public String toString(){
+		return "@" + type.toString();
 	}
 }

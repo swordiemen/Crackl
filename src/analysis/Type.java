@@ -35,9 +35,11 @@ public class Type {
 	public int getSize(){
 		switch(this.type){
 		case Bool:
-			return Integer.SIZE/Byte.SIZE;
+//			return Integer.SIZE/Byte.SIZE;
+			return 1;
 		case Int:
-			return Integer.SIZE/Byte.SIZE;
+//			return Integer.SIZE/Byte.SIZE;
+			return 1;
 //		case Array:
 //			return array.getSize();
 		case Err:
@@ -50,7 +52,10 @@ public class Type {
 	@Override
 	public boolean equals(Object obj)
 	{	
-		return obj instanceof Type && ((Type) obj).type.equals(this.type) && (isArray() == ((Type) obj).isArray());	
+		return obj instanceof Type &&
+				((Type) obj).type.equals(this.type) && 
+				(isArray() == ((Type) obj).isArray()) &&
+				(isPointer() == ((Type) obj).isPointer());	
 	}
 
 	public boolean isArray(){

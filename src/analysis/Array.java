@@ -48,7 +48,8 @@ public class Array extends Type {
 	
 	@Override
 	public int getSize() {
-		return Integer.SIZE/Byte.SIZE;
+		//return Integer.SIZE/Byte.SIZE;
+		return 1;
 	}
 	
 	public String toString(){

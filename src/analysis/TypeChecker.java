@@ -52,23 +52,21 @@ public class TypeChecker extends CracklBaseListener {
 		if(getTypeByString(idString) instanceof Array){
 			Array idType = (Array) getTypeByString(idString);
 			if(!checkType(ctx.expr(), Type.INT)){
-				addError("Index of an array must be an integer.");
+				addError(ctx,"Index of an array must be an integer.");
 			}else{
 				types.put(ctx, idType.getTypeObj());
 			}
 		}else{
-			addError(String.format("Cannot get a value from '%s', since it is not an array.", ctx.ID().getText()));
+			addError(ctx,String.format("Cannot get a value from '%s', since it is not an array.", ctx.ID().getText()));
 			types.put(ctx, Type.ERR);
 		}
 	}
 
 	public void exitArrayAssignStat(ArrayAssignStatContext ctx) {
-		if(!isInitialized(ctx.target().getText())){
-			addError("Array " + ctx.target().getText() + " has not yet been initialized.");
-		}
+		isInitialized(ctx.target().getText());
 		Type type = getType(ctx.target());
 		if(!(type instanceof Array)){
-			addError("Identifier " + ctx.target().getText() + " is not an array.");
+			addError(ctx,"Identifier " + ctx.target().getText() + " is not an array.");
 		}else{
 			Array arrType = (Array) type;
 			Type typeOfArray = arrType.getTypeObj();
@@ -92,6 +90,7 @@ public class TypeChecker extends CracklBaseListener {
 				return true;
 			}
 		}
+		addError(String.format("Variable '%s' is not initialized.", var));
 		return false;
 	}
 
@@ -113,7 +112,7 @@ public class TypeChecker extends CracklBaseListener {
 		String var = ctx.ID().getText();
 		Scope curScope = scopes.get(scopes.size()-1);
 		if(curScope.getType(var) != null){
-			addError(String.format("Variable '%s' already declared in this scope!", var));
+			addError(ctx, String.format("Variable '%s' already declared in this scope!", var));
 		}else{
 			Type lhsType = Type.get(ctx.type().getText());
 			if (ctx.expr() != null) {
@@ -147,23 +146,23 @@ public class TypeChecker extends CracklBaseListener {
 			rhsType.setSize(size);
 			rhsType.setLength(ctx.expr().size());
 		}else{
-			addError("Incorrect initialization of array.");
+			addError(ctx,"Incorrect initialization of array.");
 		}
-		
+
 		String var = ctx.ID().getText();
 		Scope curScope = scopes.get(scopes.size()-1);
 		if(curScope.getType(var) != null){
-			addError(String.format("Variable '%s' already declared in this scope!", var));
+			addError(ctx,String.format("Variable '%s' already declared in this scope!", var));
 		}else{
 			//declaring an array
 			//when declaring an array without a given size, an expression of type Array should be given.
 			//probably superfluous, since grammar enforces this.
-				types.put(ctx, rhsType);
-				curScope.put(var, rhsType);
-				result.addType(ctx, rhsType);
-				result.addOffset(ctx, curScope.getOffset(var));
-				result.addNode(ctx);
-				curScope.addInitVar(var);
+			types.put(ctx, rhsType);
+			curScope.put(var, rhsType);
+			result.addType(ctx, rhsType);
+			result.addOffset(ctx, curScope.getOffset(var));
+			result.addNode(ctx);
+			curScope.addInitVar(var);
 
 		}
 	}
@@ -173,11 +172,11 @@ public class TypeChecker extends CracklBaseListener {
 		String var = ctx.ID().getText();
 		Scope curScope = scopes.get(scopes.size()-1);
 		if(curScope.getType(var) != null){
-			addError(String.format("Variable '%s' already declared in this scope!", var));
+			addError(ctx,String.format("Variable '%s' already declared in this scope!", var));
 		}else{
 			Array lhsType = new Array(Type.get(ctx.type().getText()));
 			if(!checkType(ctx.expr(), Type.INT)){
-				addError("Array should be declared with an expression of type integer.");
+				addError(ctx,"Array should be declared with an expression of type integer.");
 			}else{
 				types.put(ctx, lhsType);
 				curScope.put(var, lhsType);
@@ -195,9 +194,7 @@ public class TypeChecker extends CracklBaseListener {
 	public void exitIdExpr(IdExprContext ctx)
 	{
 		String var = ctx.getText();
-		if(!isInitialized(var)){
-			addError("Variable " + ctx.getText() + " is not initialized.");
-		}
+		isInitialized(var);
 	}
 
 	@Override
@@ -308,23 +305,62 @@ public class TypeChecker extends CracklBaseListener {
 		String var = ctx.ID().getText();
 		if(isInitialized(var)){
 			Type idType = getTypeByString(ctx.ID().getText());
-			Type targetType = getType(ctx);
-			
-			
-			//types.put(ctx, new Pars);
+			Pointer p = (Pointer) getTypeByString(ctx.target().getText());
+			checkTypePointer(p, idType, ctx);
 		}
 	}
 
 	@Override
 	public void exitPntDecl(PntDeclContext ctx) {
-		// TODO Auto-generated method stub
-		super.exitPntDecl(ctx);
+		Scope curScope = scopes.get(scopes.size() - 1);
+		String var = ctx.ID(0).getText();
+		if(curScope.exists(var)){
+			addError(ctx, "Variable '" + var + "' is already declared!");
+		}
+		Type lhsType = Type.get(ctx.type().getText());
+		Pointer pointerType = new Pointer(lhsType);
+		if(ctx.ID().size() > 1){
+			String otherVar = ctx.ID(1).getText();
+			isInitialized(otherVar);
+			checkType(lhsType, getTypeByString(otherVar), ctx);
+		}
+		types.put(ctx, pointerType);
+		curScope.put(var, pointerType);
+		result.addType(ctx, pointerType);
+		result.addOffset(ctx, curScope.getOffset(var));
+		result.addNode(ctx);
+		curScope.addInitVar(var);
+	}
+
+	@Override
+	public void exitPntDeclNormal(PntDeclNormalContext ctx) {
+		Scope curScope = scopes.get(scopes.size() - 1);
+		String var = ctx.target().getText();
+		if(curScope.exists(var)){
+			addError(ctx, "Variable '" + var + "' is already declared!");
+		}
+		Type lhsType = Type.get(ctx.type().getText());
+		Pointer pointerType = new Pointer(lhsType);
+
+		checkType(pointerType, getType(ctx.expr()), ctx);
+
+		types.put(ctx, pointerType);
+		curScope.put(var, pointerType);
+		result.addType(ctx, pointerType);
+		result.addOffset(ctx, curScope.getOffset(var));
+		result.addNode(ctx);
+		curScope.addInitVar(var);
 	}
 
 	@Override
 	public void exitPntExpr(PntExprContext ctx) {
-		// TODO Auto-generated method stub
-		super.exitPntExpr(ctx);
+		String var = ctx.ID().getText();
+		isInitialized(var);
+		Type type = getTypeByString(var);
+		if(!(type instanceof Pointer)){
+			addError(ctx, "Variable " + var + " is not a pointer.");
+		}
+		types.put(ctx, ((Pointer) getTypeByString(var)).getTypeObj());
 	}
 
 	@Override
@@ -392,6 +428,25 @@ public class TypeChecker extends CracklBaseListener {
 		return res;
 	}
 
+	public boolean checkType(Type expected, Type actual, RuleContext ctx){
+		boolean res = true;
+		if(!actual.equals(expected)){
+			res = false;
+			addError(ctx, "Expected type " + expected + ", got " + actual + ".");
+		}
+		return res;
+	}
+
+	public boolean checkTypePointer(Pointer p, Type actual, RuleContext ctx){
+		boolean res = true;
+		Type pointerType = p.getTypeObj();
+		if(!pointerType.equals(actual)){
+			addError(ctx, "Expected type " + pointerType + ", got " + actual);
+			res = false;
+		}
+		return res;
+	}
+
 	public Type getType(RuleContext ctx)
 	{
 		String var = ctx.getText();
@@ -409,7 +464,7 @@ public class TypeChecker extends CracklBaseListener {
 			}
 		}
 		if (type == null) {
-			addError("Not declared: " + ctx.getText());
+			addError(ctx,"Not declared: " + ctx.getText());
 			type = Type.ERR;
 		}
 		result.addType((ParserRuleContext) ctx, type);

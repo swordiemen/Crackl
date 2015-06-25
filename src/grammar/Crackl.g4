@@ -7,6 +7,7 @@ stat: type ID  (ASSIGN expr)? SEMI  			#decl
 			LSQ expr (COMMA expr)* RSQ SEMI		#arrayDeclInit
 	| type LSQ expr RSQ ID SEMI					#arrayDecl 
 	| PNTTYPE type ID (PNTASSIGN ID)? SEMI		#pntDecl
+	| PNTTYPE type target ASSIGN expr SEMI		#pntDeclNormal
 	| target PNTASSIGN ID SEMI					#pntAssign
     | target ASSIGN expr SEMI             		#assignStat
     | target LSQ expr RSQ ASSIGN expr SEMI      #arrayAssignStat
