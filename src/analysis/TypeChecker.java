@@ -15,41 +15,14 @@ public class TypeChecker extends CracklBaseListener {
 
 	ParseTreeProperty<Type> types;
 	ArrayList<String> errors;
-	ArrayList<ParserRuleContext> initializedVars;
 	ArrayList<Scope> scopes;
 	Result result;
 
 	public TypeChecker(){
 		types = new ParseTreeProperty<Type>();
 		errors = new ArrayList<String>();
-		initializedVars = new ArrayList<ParserRuleContext>();
 		scopes = new ArrayList<Scope>();
 		result = new Result();
-	}
-
-	@Override
-	public void exitArrayExpr(ArrayExprContext ctx) {
-		Type type = types.get(ctx.expr(0));
-		int size = type.getSize();
-		boolean correct = true;
-		for(int i = 1; i < ctx.expr().size(); i++){
-			if(!checkType(ctx.expr(i), type)){
-				correct = false;
-				type = Type.ERR;
-				break;
-			}
-			size += types.get(ctx.expr(i)).getSize();
-		}
-
-		if(correct){		
-			Array arr = new Array(type);
-			arr.setSize(size);
-			arr.setLength(ctx.expr().size());
-			types.put(ctx, arr);
-			System.out.println(types.get(ctx).getSize());
-		}else{
-			types.put(ctx, Type.ERR);
-		}
 	}
 
 	@Override
@@ -88,8 +61,11 @@ public class TypeChecker extends CracklBaseListener {
 			types.put(ctx, Type.ERR);
 		}
 	}
-	
+
 	public void exitArrayAssignStat(ArrayAssignStatContext ctx) {
+		if(!isInitialized(ctx.target().getText())){
+			addError("Array " + ctx.target().getText() + " has not yet been initialized.");
+		}
 		Type type = getType(ctx.target());
 		if(!(type instanceof Array)){
 			addError("Identifier " + ctx.target().getText() + " is not an array.");
@@ -104,9 +80,19 @@ public class TypeChecker extends CracklBaseListener {
 	@Override
 	public void exitAssignStat(AssignStatContext ctx)
 	{
+		Scope curScope = scopes.get(scopes.size()-1);
 		Type lhsType = getType(ctx.target());
 		checkType(ctx.expr(), lhsType);
-		initializedVars.add(ctx);
+		curScope.addInitVar(ctx.getText());
+	}
+
+	public boolean isInitialized(String var){
+		for(int i = scopes.size() - 1; i >= 0; i--){
+			if(scopes.get(i).isInitialized(var)){
+				return true;
+			}
+		}
+		return false;
 	}
 
 	@Override
@@ -129,29 +115,56 @@ public class TypeChecker extends CracklBaseListener {
 		if(curScope.getType(var) != null){
 			addError(String.format("Variable '%s' already declared in this scope!", var));
 		}else{
-			if(ctx.ARRAY() == null){	//declaring a normal variable
-				Type lhsType = Type.get(ctx.type().getText());
-				if (ctx.expr() != null) {
-					checkType(ctx.expr(), lhsType);
-				}
-				types.put(ctx, lhsType);
-				curScope.put(var, lhsType);
-				result.addType(ctx, lhsType);
+			Type lhsType = Type.get(ctx.type().getText());
+			if (ctx.expr() != null) {
+				checkType(ctx.expr(), lhsType);
+				curScope.addInitVar(var);
+			}
+			types.put(ctx, lhsType);
+			curScope.put(var, lhsType);
+			result.addType(ctx, lhsType);
+			result.addOffset(ctx, curScope.getOffset(var));
+			result.addNode(ctx);
+		}
+	}
+
+	@Override
+	public void exitArrayDeclInit(ArrayDeclInitContext ctx) {
+		Type type = types.get(ctx.expr(0));
+		int size = type.getSize();
+		boolean correct = true;
+		for(int i = 1; i < ctx.expr().size(); i++){
+			if(!checkType(ctx.expr(i), type)){
+				correct = false;
+				type = Type.ERR;
+				break;
+			}
+			size += types.get(ctx.expr(i)).getSize();
+		}
+		Array rhsType = null;
+		if(correct){		
+			rhsType = new Array(type);
+			rhsType.setSize(size);
+			rhsType.setLength(ctx.expr().size());
+		}else{
+			addError("Incorrect initialization of array.");
+		}
+		
+		String var = ctx.ID().getText();
+		Scope curScope = scopes.get(scopes.size()-1);
+		if(curScope.getType(var) != null){
+			addError(String.format("Variable '%s' already declared in this scope!", var));
+		}else{
+			//declaring an array
+			//when declaring an array without a given size, an expression of type Array should be given.
+			//probably superfluous, since grammar enforces this.
+				types.put(ctx, rhsType);
+				curScope.put(var, rhsType);
+				result.addType(ctx, rhsType);
 				result.addOffset(ctx, curScope.getOffset(var));
 				result.addNode(ctx);
-			}else{	//declaring an array
-				//when declaring an array without a given size, an expression of type Array should be given.
-				if(ctx.expr() == null || !(types.get(ctx.expr()) instanceof Array)){
-					addError("Array without decleration expression should have an initial array.");
-				}else{
-					Array rhsType = (Array) types.get(ctx.expr());
-					types.put(ctx, rhsType);
-					curScope.put(var, rhsType);
-					result.addType(ctx, rhsType);
-					result.addOffset(ctx, curScope.getOffset(var));
-					result.addNode(ctx);
-				}
-			}
+				curScope.addInitVar(var);
+
 		}
 	}
 
@@ -163,8 +176,6 @@ public class TypeChecker extends CracklBaseListener {
 			addError(String.format("Variable '%s' already declared in this scope!", var));
 		}else{
 			Array lhsType = new Array(Type.get(ctx.type().getText()));
-			//TODO PUT THIS BACK IN!!!!!
-			//lhsType.setLength(Integer.parseInt(ctx.NUM().getText()));
 			if(!checkType(ctx.expr(), Type.INT)){
 				addError("Array should be declared with an expression of type integer.");
 			}else{
@@ -173,6 +184,7 @@ public class TypeChecker extends CracklBaseListener {
 				result.addType(ctx, lhsType);
 				result.addOffset(ctx, curScope.getOffset(var));
 				result.addNode(ctx);
+				curScope.addInitVar(var); // automatically initialized with default values.
 			}
 		}
 	}
@@ -182,10 +194,9 @@ public class TypeChecker extends CracklBaseListener {
 	@Override
 	public void exitIdExpr(IdExprContext ctx)
 	{
-		Scope curScope = scopes.get(scopes.size() - 1);
-		if(!curScope.exists(ctx.getText())){
-			//TODO do something with this
-			//addError("Variable " + ctx + "is not initialized.");
+		String var = ctx.getText();
+		if(!isInitialized(var)){
+			addError("Variable " + ctx.getText() + " is not initialized.");
 		}
 	}
 
@@ -290,6 +301,30 @@ public class TypeChecker extends CracklBaseListener {
 			result.addType(ctx, Type.ERR);
 		}
 		result.addNode(ctx);
+	}
+
+	@Override
+	public void exitPntAssign(PntAssignContext ctx) {
+		String var = ctx.ID().getText();
+		if(isInitialized(var)){
+			Type idType = getTypeByString(ctx.ID().getText());
+			Type targetType = getType(ctx);
+			
+			
+			//types.put(ctx, new Pars);
+		}
+	}
+
+	@Override
+	public void exitPntDecl(PntDeclContext ctx) {
+		// TODO Auto-generated method stub
+		super.exitPntDecl(ctx);
+	}
+
+	@Override
+	public void exitPntExpr(PntExprContext ctx) {
+		// TODO Auto-generated method stub
+		super.exitPntExpr(ctx);
 	}
 
 	@Override

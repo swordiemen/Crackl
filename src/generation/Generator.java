@@ -76,7 +76,7 @@ public class Generator extends CracklBaseVisitor<Op>{
 			visit(ctx.expr(i));
 			Reg rExpr = popReg();
 			add(Write, rExpr, deref(rArrayPointer));
-			add(Compute, operator(Add), rOne, rOne, rArrayPointer);
+			add(Compute, operator(Add), rOne, rArrayPointer, rArrayPointer);
 			freeReg(rExpr);
 		}
 		

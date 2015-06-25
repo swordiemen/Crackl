@@ -5,7 +5,7 @@ import java.util.Map;
 public class Type {
 
 	public enum Types {
-		Bool, Int, Err, Array
+		Bool, Int, Err, Array, Pointer
 	}
 	
 	
@@ -55,6 +55,10 @@ public class Type {
 
 	public boolean isArray(){
 		return type == Types.Array;
+	}
+	
+	public boolean isPointer(){
+		return type == Types.Pointer;
 	}
 	
 	/**

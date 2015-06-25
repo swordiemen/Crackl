@@ -12,7 +12,7 @@ public class Array extends Type {
 	}
 	
 	public Array(Type t){
-		super(t.getType());
+		super(Types.Array);
 		this.type = t;
 	}
 	

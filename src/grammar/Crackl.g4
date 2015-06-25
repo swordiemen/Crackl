@@ -2,9 +2,12 @@ grammar Crackl;
 
 program: PROGRAM_START stat;
 
-stat: type ID  (ASSIGN expr)? SEMI  		#decl
-	| type ARRAY ID ASSIGN LSQ expr (COMMA expr)* RSQ SEMI			#arrayDeclInit
+stat: type ID  (ASSIGN expr)? SEMI  			#decl
+	| type ARRAY ID ASSIGN 
+			LSQ expr (COMMA expr)* RSQ SEMI		#arrayDeclInit
 	| type LSQ expr RSQ ID SEMI					#arrayDecl 
+	| PNTTYPE type ID (PNTASSIGN ID)? SEMI		#pntDecl
+	| target PNTASSIGN ID SEMI					#pntAssign
     | target ASSIGN expr SEMI             		#assignStat
     | target LSQ expr RSQ ASSIGN expr SEMI      #arrayAssignStat
     | IF LPAR expr RPAR stat (ELSE stat)? 		#ifStat 
@@ -38,6 +41,7 @@ expr: expr DOT ID                   #fieldExpr
     | expr OR  expr                 #orExpr
     | expr (LT | GT | EQ | NE) expr #compExpr
     | LPAR expr RPAR                #parExpr
+    | PNTVAR ID						#pntExpr
     | NUM				            #constNumExpr
     | BOOL							#constBoolExpr
     | ID                            #idExpr
@@ -50,6 +54,7 @@ BOOLTYPE: 'boolean';
 BOOL: 'true' | 'false';
 ARRAY: LSQ RSQ;
 
+PNTASSIGN: '=>';
 PROGRAM_START: 'Program';
 LCURL: '{';
 RCURL: '}'; 
@@ -77,6 +82,8 @@ PRINT: 'print';
 COMMA: ',';
 FUNCTION: 'func';
 VOID: 'void';
+PNTTYPE: '#';
+PNTVAR: '@';
 
 
 fragment LETTER: [a-zA-Z];
