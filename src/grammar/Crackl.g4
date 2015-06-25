@@ -2,8 +2,8 @@ grammar Crackl;
 
 program: PROGRAM_START stat;
 
-stat: type ID (ASSIGN expr)? SEMI     			#decl
-	| type LSQ expr RSQ ID (ASSIGN expr)? SEMI	#arrayDecl 
+stat: type ARRAY? ID  (ASSIGN expr)? SEMI  		#decl
+	| type LSQ expr RSQ ID SEMI					#arrayDecl 
     | target ASSIGN expr SEMI             		#assignStat
     | target LSQ expr RSQ ASSIGN expr SEMI      #arrayAssignStat
     | IF LPAR expr RPAR stat (ELSE stat)? 		#ifStat 
@@ -49,6 +49,7 @@ BOOLTYPE: 'boolean';
 
 
 BOOL: 'true' | 'false';
+ARRAY: LSQ RSQ;
 
 PROGRAM_START: 'Program';
 LCURL: '{';
