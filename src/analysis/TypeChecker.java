@@ -1,7 +1,35 @@
 package analysis;
 
 import grammar.CracklBaseListener;
-import grammar.CracklParser.*;
+import grammar.CracklParser.AddExprContext;
+import grammar.CracklParser.AndExprContext;
+import grammar.CracklParser.ArrayAssignStatContext;
+import grammar.CracklParser.ArrayDeclContext;
+import grammar.CracklParser.ArrayDeclInitContext;
+import grammar.CracklParser.ArrayIndexExprContext;
+import grammar.CracklParser.AssignStatContext;
+import grammar.CracklParser.BlockStatContext;
+import grammar.CracklParser.CompExprContext;
+import grammar.CracklParser.ConstBoolExprContext;
+import grammar.CracklParser.ConstNumExprContext;
+import grammar.CracklParser.DeclContext;
+import grammar.CracklParser.FuncCallContext;
+import grammar.CracklParser.FuncContext;
+import grammar.CracklParser.FuncExprContext;
+import grammar.CracklParser.FuncStatContext;
+import grammar.CracklParser.IdExprContext;
+import grammar.CracklParser.IfStatContext;
+import grammar.CracklParser.NotExprContext;
+import grammar.CracklParser.OrExprContext;
+import grammar.CracklParser.ParExprContext;
+import grammar.CracklParser.PrintExprStatContext;
+import grammar.CracklParser.ProgramContext;
+import grammar.CracklParser.PtrAssignContext;
+import grammar.CracklParser.PtrDeclContext;
+import grammar.CracklParser.PtrDeclNormalContext;
+import grammar.CracklParser.PtrDerefExprContext;
+import grammar.CracklParser.PtrRefExprContext;
+import grammar.CracklParser.RetContext;
 
 import java.awt.Cursor;
 import java.util.ArrayList;
@@ -202,7 +230,7 @@ public class TypeChecker extends CracklBaseListener {
 
 
 	@Override
-	public void exitPntDecl(PntDeclContext ctx) {
+	public void exitPtrDecl(PtrDeclContext ctx) {
 		boolean global = (ctx.GLOBAL() != null);
 		if(global && (scopes.size() > 1)){
 			addError(ctx, "Global variables may only be defined in the outer scope.");
@@ -229,8 +257,9 @@ public class TypeChecker extends CracklBaseListener {
 
 	}
 
+	
 	@Override
-	public void exitPntDeclNormal(PntDeclNormalContext ctx) {
+	public void exitPtrDeclNormal(PtrDeclNormalContext ctx) {
 		boolean global = (ctx.GLOBAL() != null);
 		if(global && (scopes.size() > 1)){
 			addError(ctx, "Global variables may only be defined in the outer scope.");
@@ -252,7 +281,7 @@ public class TypeChecker extends CracklBaseListener {
 		result.addNode(ctx);
 		curScope.addInitVar(var);
 	}
-
+	
 	@Override
 	public void exitIdExpr(IdExprContext ctx)
 	{
@@ -364,7 +393,7 @@ public class TypeChecker extends CracklBaseListener {
 	}
 
 	@Override
-	public void exitPntAssign(PntAssignContext ctx) {
+	public void exitPtrAssign(PtrAssignContext ctx) {
 		String var = ctx.ID().getText();
 		if(isInitialized(var)){
 			Type idType = getTypeByString(ctx.ID().getText());
@@ -372,7 +401,6 @@ public class TypeChecker extends CracklBaseListener {
 			checkTypePointer(p, idType, ctx);
 		}
 	}
-
 
 	@Override
 	public void exitPtrDerefExpr(PtrDerefExprContext ctx) {

@@ -6,9 +6,9 @@ stat: GLOBAL? type ID  (ASSIGN expr)? SEMI  			#decl
 	| GLOBAL? type ARRAY ID ASSIGN 
 			LSQ expr (COMMA expr)* RSQ SEMI				#arrayDeclInit
 	| GLOBAL? type LSQ expr RSQ ID SEMI					#arrayDecl 
-	| GLOBAL? PNTTYPE type ID (PNTASSIGN ID)? SEMI		#pntDecl
-	| GLOBAL? PNTTYPE type target ASSIGN expr SEMI		#pntDeclNormal
-	| target PNTASSIGN ID SEMI							#pntAssign
+	| GLOBAL? PTRTYPE type ID (PTRASSIGN ID)? SEMI		#ptrDecl
+	| GLOBAL? PTRTYPE type target ASSIGN expr SEMI		#ptrDeclNormal
+	| target PTRASSIGN ID SEMI							#ptrAssign
     | target ASSIGN expr SEMI             				#assignStat
     | target LSQ expr RSQ ASSIGN expr SEMI     			#arrayAssignStat
     | IF LPAR expr RPAR stat (ELSE stat)? 				#ifStat 
@@ -58,7 +58,7 @@ BOOLTYPE: 'boolean';
 BOOL: 'true' | 'false';
 ARRAY: LSQ RSQ;
 
-PNTASSIGN: '=>';
+PTRASSIGN: '=>';
 PROGRAM_START: 'Program';
 LCURL: '{';
 RCURL: '}'; 
@@ -87,11 +87,10 @@ COMMA: ',';
 FUNCTION: 'func';
 VOID: 'void';
 GLOBAL: 'global';
-PNTTYPE: '#';
+PTRTYPE: '#';
 DEREF: '@';
 REF: '&';
 FSLASH: '/';
-
 
 fragment LETTER: [a-zA-Z];
 fragment DIGIT: [0-9];

@@ -20,6 +20,10 @@ import grammar.CracklParser.IdExprContext;
 import grammar.CracklParser.IfStatContext;
 import grammar.CracklParser.PrintExprStatContext;
 import grammar.CracklParser.ProgramContext;
+import grammar.CracklParser.PtrAssignContext;
+import grammar.CracklParser.PtrDeclContext;
+import grammar.CracklParser.PtrDeclNormalContext;
+import grammar.CracklParser.PtrDerefExprContext;
 import grammar.CracklParser.StatContext;
 import grammar.CracklParser.WhileStatContext;
 
@@ -59,6 +63,70 @@ public class Generator extends CracklBaseVisitor<Op>{
 	public Generator(Result result){
 		this.result = result;
 		freeRegisters.addAll(Op.gpRegisters);
+	}
+	
+	@Override
+	public Op visitPtrDecl(PtrDeclContext ctx)
+	{
+		//		| PTRTYPE type ID (PTRASSIGN ID)? SEMI		#ptrDecl
+		//		#int a => b;
+		Reg r1 = null;
+		if(ctx.PTRASSIGN() != null)
+		{
+			r1 = getFreeReg();
+			MemoryLocation assignLoc = currentScope.getMemLoc(ctx.ID(1).getText());
+			add(Const, constOp(assignLoc.getScopeOffset()+assignLoc.getVarOffset()), r1);
+		}
+		else
+		{
+			r1 = reg(Zero); //null-pointer
+		}
+		MemoryLocation loc = currentScope.getMemLoc(ctx.ID(0).getText());
+		add(Store, r1, addr(loc.getScopeOffset(), loc.getVarOffset()));
+		freeReg(r1);
+		return null;
+	}
+	
+	@Override
+	public Op visitPtrDeclNormal(PtrDeclNormalContext ctx)
+	{
+		//	| PTRTYPE type target ASSIGN expr SEMI		#ptrDeclNormal
+		// #int a = b; where b is ptr
+		visit(ctx.expr());
+		Reg r1 = popReg();
+		MemoryLocation loc = currentScope.getMemLoc(ctx.target().ID().getText());
+		add(Store, r1, addr(loc.getScopeOffset(), loc.getVarOffset()));
+		freeReg(r1);
+		return null;
+	}
+	
+	@Override
+	public Op visitPtrAssign(PtrAssignContext ctx)
+	{
+		// | target PTRASSIGN ID SEMI					#ptrAssign
+		// a => b; where b is value and a is ptr
+		Reg r1 = getFreeReg();
+		MemoryLocation assignLoc = currentScope.getMemLoc(ctx.ID().getText());
+		add(Const, constOp(assignLoc.getScopeOffset() + assignLoc.getVarOffset()), r1);
+
+		MemoryLocation targetLoc = currentScope.getMemLoc(ctx.target().ID().getText());
+		add(Store, r1, addr(targetLoc.getScopeOffset(), targetLoc.getVarOffset()));
+		freeReg(r1);
+		return null;
+	}
+	
+	@Override
+	public Op visitPtrDerefExpr(PtrDerefExprContext ctx)
+	{
+		//  DEREF ID						#ptrDerefExpr
+		visit(ctx.expr());
+		Reg regLocation = popReg();
+
+		add(Read, deref(regLocation ));
+		add(Receive, regLocation);
+
+		pushReg(regLocation); //is actually rReceiveValue...
+		return null;
 	}
 	
 	@Override
@@ -369,7 +437,6 @@ public class Generator extends CracklBaseVisitor<Op>{
 	public Op visitDecl(DeclContext ctx)
 	{
 		Reg r1 = null;
-		//TODO: for now initializes to 0, should be caught during checker phase
 		if(ctx.expr() != null)
 		{
 			visit(ctx.expr());
@@ -419,13 +486,19 @@ public class Generator extends CracklBaseVisitor<Op>{
 	@Override
 	public Op visitPrintExprStat(PrintExprStatContext ctx)
 	{
-		int NUM_OFFSET_UTF16 = 48;
+		int NUM_OFFSET_ASCII= 48;
+		int ASCII_NEWLINE = 12;
+		int ASCII_BACKSPACE = 10;
 		visit(ctx.expr());
 		Reg r1 = popReg();
 		Reg r2 = getFreeReg();
-		add(Const, constOp(""+NUM_OFFSET_UTF16), r2);
+		add(Const, constOp(""+NUM_OFFSET_ASCII), r2);
 		add(Compute, operator(Add), r1, r2, r1);
 		add(Write, r1, MemAddr.StdIO);
+		add(Const, constOp(ASCII_NEWLINE), r1);
+		add(Write, r1, MemAddr.StdIO);
+//		add(Const, constOp(ASCII_BACKSPACE), r1);
+//		add(Write, r1, MemAddr.StdIO);
 		freeReg(r2);
 		freeReg(r1);
 		return null;
@@ -444,13 +517,11 @@ public class Generator extends CracklBaseVisitor<Op>{
 		//this sort of simulates 'moving variables declarations to the top of the scope'
 		//Type checking makes sure we don't use unassigned and undeclared variables
 		for (StatContext child : stats) {
-			if(child instanceof DeclContext)
+			if(child instanceof DeclContext || child instanceof PtrDeclContext || child instanceof PtrDeclNormalContext)
 			{
 				//reserve some space on the stack, to allow for future write
 				reserveStackSpace(((DeclContext)child).ID().getText());
-			}else if(child instanceof ArrayDeclContext){
-				//reserveStackSpace(((ArrayDeclContext)child).ID().getText());
-			}
+			}	
 		}
 		
 		for (StatContext child: stats) {
