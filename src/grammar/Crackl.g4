@@ -42,7 +42,8 @@ expr: expr DOT ID                   #fieldExpr
     | expr OR  expr                 #orExpr
     | expr (LT | GT | EQ | NE) expr #compExpr
     | LPAR expr RPAR                #parExpr
-    | PNTVAR ID						#pntExpr
+    | DEREF expr					#ptrDerefExpr
+    | REF expr						#ptrRefExpr
     | NUM				            #constNumExpr
     | BOOL							#constBoolExpr
     | ID                            #idExpr
@@ -85,7 +86,8 @@ COMMA: ',';
 FUNCTION: 'func';
 VOID: 'void';
 PNTTYPE: '#';
-PNTVAR: '@';
+DEREF: '@';
+REF: '&';
 FSLASH: '/';
 
 

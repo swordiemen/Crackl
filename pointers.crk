@@ -1,13 +1,8 @@
-Program{
-	int i = 0;
-	#int p => i; //comment heir hier hier//
-	#
-	int
+Program {
+	int a = 0;
+	#int p1 => a;
+	#int p2 = &a;
 	
-	s
-	
-	=
-	
-	p
-	;
+	p2 = &a;
+	p1 = &p2;
 }
