@@ -1,7 +1,34 @@
 package analysis;
 
 import grammar.CracklBaseListener;
-import grammar.CracklParser.*;
+import grammar.CracklParser.AddExprContext;
+import grammar.CracklParser.AndExprContext;
+import grammar.CracklParser.ArrayAssignStatContext;
+import grammar.CracklParser.ArrayDeclContext;
+import grammar.CracklParser.ArrayDeclInitContext;
+import grammar.CracklParser.ArrayIndexExprContext;
+import grammar.CracklParser.AssignStatContext;
+import grammar.CracklParser.BlockStatContext;
+import grammar.CracklParser.CompExprContext;
+import grammar.CracklParser.ConstBoolExprContext;
+import grammar.CracklParser.ConstNumExprContext;
+import grammar.CracklParser.DeclContext;
+import grammar.CracklParser.FuncCallContext;
+import grammar.CracklParser.FuncContext;
+import grammar.CracklParser.FuncExprContext;
+import grammar.CracklParser.FuncStatContext;
+import grammar.CracklParser.IdExprContext;
+import grammar.CracklParser.IfStatContext;
+import grammar.CracklParser.NotExprContext;
+import grammar.CracklParser.OrExprContext;
+import grammar.CracklParser.ParExprContext;
+import grammar.CracklParser.PrintExprStatContext;
+import grammar.CracklParser.ProgramContext;
+import grammar.CracklParser.PtrAssignContext;
+import grammar.CracklParser.PtrDeclContext;
+import grammar.CracklParser.PtrDeclNormalContext;
+import grammar.CracklParser.PtrDerefExprContext;
+import grammar.CracklParser.RetContext;
 
 import java.util.ArrayList;
 
@@ -9,7 +36,6 @@ import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.RuleContext;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTreeProperty;
-import org.antlr.v4.runtime.tree.TerminalNode;
 
 public class TypeChecker extends CracklBaseListener {
 
@@ -301,7 +327,7 @@ public class TypeChecker extends CracklBaseListener {
 	}
 
 	@Override
-	public void exitPntAssign(PntAssignContext ctx) {
+	public void exitPtrAssign(PtrAssignContext ctx) {
 		String var = ctx.ID().getText();
 		if(isInitialized(var)){
 			Type idType = getTypeByString(ctx.ID().getText());
@@ -311,7 +337,7 @@ public class TypeChecker extends CracklBaseListener {
 	}
 
 	@Override
-	public void exitPntDecl(PntDeclContext ctx) {
+	public void exitPtrDecl(PtrDeclContext ctx) {
 		Scope curScope = scopes.get(scopes.size() - 1);
 		String var = ctx.ID(0).getText();
 		if(curScope.exists(var)){
@@ -333,7 +359,7 @@ public class TypeChecker extends CracklBaseListener {
 	}
 
 	@Override
-	public void exitPntDeclNormal(PntDeclNormalContext ctx) {
+	public void exitPtrDeclNormal(PtrDeclNormalContext ctx) {
 		Scope curScope = scopes.get(scopes.size() - 1);
 		String var = ctx.target().getText();
 		if(curScope.exists(var)){
@@ -353,8 +379,9 @@ public class TypeChecker extends CracklBaseListener {
 	}
 
 	@Override
-	public void exitPntExpr(PntExprContext ctx) {
-		String var = ctx.ID().getText();
+	public void exitPtrDerefExpr(PtrDerefExprContext ctx)
+	{
+		String var = ctx.expr().getText();
 		isInitialized(var);
 		Type type = getTypeByString(var);
 		if(!(type instanceof Pointer)){

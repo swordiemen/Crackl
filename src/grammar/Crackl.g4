@@ -6,9 +6,9 @@ stat: type ID  (ASSIGN expr)? SEMI  			#decl
 	| type ARRAY ID ASSIGN 
 			LSQ expr (COMMA expr)* RSQ SEMI		#arrayDeclInit
 	| type LSQ expr RSQ ID SEMI					#arrayDecl 
-	| PNTTYPE type ID (PNTASSIGN ID)? SEMI		#pntDecl
-	| PNTTYPE type target ASSIGN expr SEMI		#pntDeclNormal
-	| target PNTASSIGN ID SEMI					#pntAssign
+	| PTRTYPE type ID (PTRASSIGN ID)? SEMI		#ptrDecl
+	| PTRTYPE type target ASSIGN expr SEMI		#ptrDeclNormal
+	| target PTRASSIGN ID SEMI					#ptrAssign
     | target ASSIGN expr SEMI             		#assignStat
     | target LSQ expr RSQ ASSIGN expr SEMI      #arrayAssignStat
     | IF LPAR expr RPAR stat (ELSE stat)? 		#ifStat 
@@ -42,7 +42,7 @@ expr: expr DOT ID                   #fieldExpr
     | expr OR  expr                 #orExpr
     | expr (LT | GT | EQ | NE) expr #compExpr
     | LPAR expr RPAR                #parExpr
-    | PNTVAR ID						#pntExpr
+    | DEREF expr					#ptrDerefExpr
     | NUM				            #constNumExpr
     | BOOL							#constBoolExpr
     | ID                            #idExpr
@@ -55,7 +55,7 @@ BOOLTYPE: 'boolean';
 BOOL: 'true' | 'false';
 ARRAY: LSQ RSQ;
 
-PNTASSIGN: '=>';
+PTRASSIGN: '=>';
 PROGRAM_START: 'Program';
 LCURL: '{';
 RCURL: '}'; 
@@ -83,8 +83,8 @@ PRINT: 'print';
 COMMA: ',';
 FUNCTION: 'func';
 VOID: 'void';
-PNTTYPE: '#';
-PNTVAR: '@';
+PTRTYPE: '#';
+DEREF: '@';
 
 
 fragment LETTER: [a-zA-Z];
