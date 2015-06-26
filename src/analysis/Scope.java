@@ -7,10 +7,13 @@ import java.util.Map;
 
 public class Scope {
 	private int size;
+	private int globSize;
 	private Map<String, Type> types;
 	private Map<String, Integer> offsets;
+	private Map<String, Integer> globalOffsets;
 	private Scope prevScope;
 	private ArrayList<String> initVars;
+	private Map<String, Boolean> varToIsGlobal;
 
 	/**
 	 * Creates a new Scope with a given previous scope.
@@ -20,7 +23,11 @@ public class Scope {
 		types = new HashMap<String, Type>();
 		offsets = new HashMap<String, Integer>();
 		initVars = new ArrayList<String>();
+		varToIsGlobal = new HashMap<String, Boolean>();
+		globalOffsets = new HashMap<String, Integer>();
 		prevScope = s;
+		size = 0;
+		globSize = 0;
 	}
 
 	/**
@@ -30,7 +37,7 @@ public class Scope {
 	public Scope getScope(){
 		return prevScope;
 	}
-	
+
 	/**
 	 * Returns the list of initialized variables of this scope.
 	 * @return initVars
@@ -38,7 +45,7 @@ public class Scope {
 	public ArrayList<String> getInitVars(){
 		return initVars;
 	}
-	
+
 	/**
 	 * Returns true if <code>var</code> is initialized in this scope.
 	 * @param var The variable to be checked.
@@ -47,7 +54,7 @@ public class Scope {
 	public boolean isInitialized(String var){
 		return initVars.contains(var);
 	}
-	
+
 	/**
 	 * Adds an initialized variable to this Scope.
 	 * @param var The variable to be added.
@@ -69,12 +76,19 @@ public class Scope {
 	 * Puts a new variable in this scope. If it already exists, does nothing (should not happen, is managed by TypeChecker).
 	 * @param var The variable to be added.
 	 * @param type The type of the variable.
+	 * @param glob Whether the variable is global.
 	 */
-	public void put(String var, Type type){
+	public void put(String var, Type type, boolean glob){
 		if(!exists(var)){
 			types.put(var, type);
-			offsets.put(var, size);
-			size += type.getSize();
+			if(glob){
+				globalOffsets.put(var, globSize);
+				globSize += type.getSize();
+			}else{
+				offsets.put(var, size);
+				size += type.getSize();
+			}
+			varToIsGlobal.put(var, glob);
 		}else{
 			System.out.println("Already exists "+var);
 		}
@@ -85,18 +99,29 @@ public class Scope {
 	 * @return <b>baseAddress</b> The baseAddress of this Scope.
 	 */
 	public int getBaseAddress(){
+		if(prevScope == null){ //top level Scope
+			return 0;
+		}
+		return prevScope.getLocalSize() + prevScope.getBaseAddress();
+	}
+
+	public int getGlobalBaseAddress(){
 		if(prevScope == null){
 			return 0;
 		}
-		return prevScope.getSize() + prevScope.getBaseAddress();
+		return prevScope.getGlobalSize() + prevScope.getGlobalBaseAddress();
 	}
 
 	/**
 	 * Returns the size of this Scope.
 	 * @return <b>size</b> The size of this Scope.
 	 */
-	private int getSize() {
+	private int getLocalSize() {
 		return size;
+	}
+
+	public int getGlobalSize(){
+		return globSize;
 	}
 
 	/**
@@ -106,13 +131,6 @@ public class Scope {
 	 */
 	public Type getType(String var){
 		Type type = types.get(var);
-//		if(type != null){
-//			return type;
-//		}else if(prevScope == null && type == null){
-//			return null;
-//		}else{
-//			return prevScope.getType(var)
-//		}
 		return type;
 	}
 
@@ -122,7 +140,21 @@ public class Scope {
 	 * @return <b>offset</b> The offset of the variable.
 	 */
 	public Integer getOffset(String var){	//Integer instead of int, since it can return null.
-		return offsets.get(var);
+		int res = -1;
+		if(isGlobal(var)){
+			res = globalOffsets.get(var);
+		}else{
+			res = offsets.get(var);
+		}
+		return res;
+	}
+
+	public Boolean isGlobal(String var){
+		if(varToIsGlobal.containsKey(var)){
+			return varToIsGlobal.get(var);
+		}else{
+			return null;
+		}
 	}
 
 	/**
@@ -133,9 +165,15 @@ public class Scope {
 	 */
 	public MemoryLocation getMemLoc(String var){
 		MemoryLocation memLoc = null;
-		Integer offset = offsets.get(var);
+		boolean global = isGlobal(var);
+		Integer offset;
+		if(global){
+			offset = globalOffsets.get(var);
+		}else{
+			offset = offsets.get(var);
+		}
 		if(offset != null){
-			memLoc = new MemoryLocation(this, getOffset(var));
+			memLoc = new MemoryLocation(this, getOffset(var), isGlobal(var));
 		}else if(prevScope == null && offset == null){
 			return null;
 		}else{
@@ -143,4 +181,5 @@ public class Scope {
 		}
 		return memLoc;
 	}
+
 }

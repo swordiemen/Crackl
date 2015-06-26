@@ -4,25 +4,33 @@ public class MemoryLocation {
 	private Scope scope;
 	private int scopeOffset;
 	private int varOffset;
-	
-	/**
-	 * Creates a new MemoryLocation with default values.
-	 */
-	public MemoryLocation(){
-		this(new Scope(null), -1);
-	}
-	
+	private boolean global;
+	public static final int STACK_START_ADDR = 127;
+
+//	/**
+//	 * Creates a new MemoryLocation with default values.
+//	 */
+//	public MemoryLocation(){
+//		this(new Scope(null), );
+//	}
+
 	/**
 	 * Creates a new MemoryLocation of a variable with a specified scope, scopeOffset and varOffset
 	 * @param s Scope where this variable lives in.
 	 * @param vo The offset of the variable relative to the scope.
 	 */
-	public MemoryLocation(Scope s, int vo){
+	public MemoryLocation(Scope s, int vo, boolean isGlobal){
+		global = isGlobal;
 		setScope(s);
-		scopeOffset = s.getBaseAddress();
-		setVarOffset(vo);
+		if(global){
+			scopeOffset = s.getGlobalBaseAddress();
+			setVarOffset(vo);
+		}else{
+			scopeOffset = STACK_START_ADDR - s.getBaseAddress();
+			setVarOffset(vo);
+		}
 	}
-	
+
 	/**
 	 * Returns the scope of this MemoryLocation.
 	 * @return scope
@@ -74,9 +82,25 @@ public class MemoryLocation {
 		this.varOffset = varOffset;
 	}
 	
+	public int getTotalOffset(){
+		return scopeOffset - getVarOffset();
+	}
+
 	@Override
 	public String toString()
 	{
 		return scopeOffset + ", "+varOffset;
+	}
+
+	public boolean isLocal(){
+		return !isGlobal();
+	}
+
+	public boolean isGlobal(){
+		return global;
+	}
+
+	public void setGlobal(boolean glob){
+		global = glob;
 	}
 }
