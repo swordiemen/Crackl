@@ -44,7 +44,7 @@ expr: expr DOT ID                   #fieldExpr
     | expr (LT | GT | EQ | NE) expr #compExpr
     | LPAR expr RPAR                #parExpr
     | DEREF expr					#ptrDerefExpr
-    | REF expr						#ptrRefExpr
+    | REF ID						#ptrRefExpr
     | NUM				            #constNumExpr
     | BOOL							#constBoolExpr
     | ID                            #idExpr

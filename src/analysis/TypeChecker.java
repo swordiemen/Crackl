@@ -254,7 +254,6 @@ public class TypeChecker extends CracklBaseListener {
 		result.addOffset(ctx, curScope.getOffset(var));
 		result.addNode(ctx);
 		curScope.addInitVar(var);
-
 	}
 
 	
@@ -414,7 +413,7 @@ public class TypeChecker extends CracklBaseListener {
 
 	@Override
 	public void exitPtrRefExpr(PtrRefExprContext ctx) {
-		Pointer type = new Pointer(getType(ctx.expr()));
+		Pointer type = new Pointer(getTypeByString(ctx.ID().getText()));
 		types.put(ctx, type);
 		result.addNode(ctx);
 		result.addType(ctx, type);
