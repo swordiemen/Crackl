@@ -1,8 +1,11 @@
 Program {
-	int a = 0;
-	#int p1 => a;
-	#int p2 = &a;
-	
-	p2 = &a;
-	p1 = &p2;
+	global int a = 0;
+	global int b = 1;
+	local int c;
+	global int d;
+	{
+		int f = a;
+		int g = b;
+	}
+	global int i;
 }

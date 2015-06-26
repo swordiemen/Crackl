@@ -31,6 +31,7 @@ import grammar.CracklParser.PtrDerefExprContext;
 import grammar.CracklParser.PtrRefExprContext;
 import grammar.CracklParser.RetContext;
 
+import java.awt.Cursor;
 import java.util.ArrayList;
 
 import org.antlr.v4.runtime.ParserRuleContext;
@@ -136,6 +137,10 @@ public class TypeChecker extends CracklBaseListener {
 	@Override
 	public void exitDecl(DeclContext ctx)
 	{
+		boolean global = (ctx.GLOBAL() != null);
+		if(global && (scopes.size() > 1)){
+			addError(ctx, "Global variables may only be defined in the outer scope.");
+		}
 		String var = ctx.ID().getText();
 		Scope curScope = scopes.get(scopes.size()-1);
 		if(curScope.getType(var) != null){
@@ -147,7 +152,7 @@ public class TypeChecker extends CracklBaseListener {
 				curScope.addInitVar(var);
 			}
 			types.put(ctx, lhsType);
-			curScope.put(var, lhsType);
+			curScope.put(var, lhsType, global);
 			result.addType(ctx, lhsType);
 			result.addOffset(ctx, curScope.getOffset(var));
 			result.addNode(ctx);
@@ -156,6 +161,10 @@ public class TypeChecker extends CracklBaseListener {
 
 	@Override
 	public void exitArrayDeclInit(ArrayDeclInitContext ctx) {
+		boolean global = (ctx.GLOBAL() != null);
+		if(global && (scopes.size() > 1)){
+			addError(ctx, "Global variables may only be defined in the outer scope.");
+		}
 		Type type = types.get(ctx.expr(0));
 		int size = type.getSize();
 		boolean correct = true;
@@ -185,7 +194,7 @@ public class TypeChecker extends CracklBaseListener {
 			//when declaring an array without a given size, an expression of type Array should be given.
 			//probably superfluous, since grammar enforces this.
 			types.put(ctx, rhsType);
-			curScope.put(var, rhsType);
+			curScope.put(var, rhsType, global);
 			result.addType(ctx, rhsType);
 			result.addOffset(ctx, curScope.getOffset(var));
 			result.addNode(ctx);
@@ -196,6 +205,10 @@ public class TypeChecker extends CracklBaseListener {
 
 	@Override
 	public void exitArrayDecl(ArrayDeclContext ctx) {
+		boolean global = (ctx.GLOBAL() != null);
+		if(global && (scopes.size() > 1)){
+			addError(ctx, "Global variables may only be defined in the outer scope.");
+		}
 		String var = ctx.ID().getText();
 		Scope curScope = scopes.get(scopes.size()-1);
 		if(curScope.getType(var) != null){
@@ -206,7 +219,7 @@ public class TypeChecker extends CracklBaseListener {
 				addError(ctx,"Array should be declared with an expression of type integer.");
 			}else{
 				types.put(ctx, lhsType);
-				curScope.put(var, lhsType);
+				curScope.put(var, lhsType, global);
 				result.addType(ctx, lhsType);
 				result.addOffset(ctx, curScope.getOffset(var));
 				result.addNode(ctx);
@@ -216,7 +229,59 @@ public class TypeChecker extends CracklBaseListener {
 	}
 
 
+	@Override
+	public void exitPtrDecl(PtrDeclContext ctx) {
+		boolean global = (ctx.GLOBAL() != null);
+		if(global && (scopes.size() > 1)){
+			addError(ctx, "Global variables may only be defined in the outer scope.");
+		}
 
+		Scope curScope = scopes.get(scopes.size() - 1);
+		String var = ctx.ID(0).getText();
+		if(curScope.exists(var)){
+			addError(ctx, "Variable '" + var + "' is already declared!");
+		}
+		Type lhsType = Type.get(ctx.type().getText());
+		Pointer pointerType = new Pointer(lhsType);
+		if(ctx.ID().size() > 1){
+			String otherVar = ctx.ID(1).getText();
+			isInitialized(otherVar);
+			checkType(lhsType, getTypeByString(otherVar), ctx);
+		}
+		types.put(ctx, pointerType);
+		curScope.put(var, pointerType, global);
+		result.addType(ctx, pointerType);
+		result.addOffset(ctx, curScope.getOffset(var));
+		result.addNode(ctx);
+		curScope.addInitVar(var);
+
+	}
+
+	
+	@Override
+	public void exitPtrDeclNormal(PtrDeclNormalContext ctx) {
+		boolean global = (ctx.GLOBAL() != null);
+		if(global && (scopes.size() > 1)){
+			addError(ctx, "Global variables may only be defined in the outer scope.");
+		}
+		Scope curScope = scopes.get(scopes.size() - 1);
+		String var = ctx.target().getText();
+		if(curScope.exists(var)){
+			addError(ctx, "Variable '" + var + "' is already declared!");
+		}
+		Type lhsType = Type.get(ctx.type().getText());
+		Pointer pointerType = new Pointer(lhsType);
+
+		checkType(pointerType, getType(ctx.expr()), ctx);
+
+		types.put(ctx, pointerType);
+		curScope.put(var, pointerType, global);
+		result.addType(ctx, pointerType);
+		result.addOffset(ctx, curScope.getOffset(var));
+		result.addNode(ctx);
+		curScope.addInitVar(var);
+	}
+	
 	@Override
 	public void exitIdExpr(IdExprContext ctx)
 	{
@@ -338,48 +403,6 @@ public class TypeChecker extends CracklBaseListener {
 	}
 
 	@Override
-	public void exitPtrDecl(PtrDeclContext ctx) {
-		Scope curScope = scopes.get(scopes.size() - 1);
-		String var = ctx.ID(0).getText();
-		if(curScope.exists(var)){
-			addError(ctx, "Variable '" + var + "' is already declared!");
-		}
-		Type lhsType = Type.get(ctx.type().getText());
-		Pointer pointerType = new Pointer(lhsType);
-		if(ctx.ID().size() > 1){
-			String otherVar = ctx.ID(1).getText();
-			isInitialized(otherVar);
-			checkType(lhsType, getTypeByString(otherVar), ctx);
-		}
-		types.put(ctx, pointerType);
-		curScope.put(var, pointerType);
-		result.addType(ctx, pointerType);
-		result.addOffset(ctx, curScope.getOffset(var));
-		result.addNode(ctx);
-		curScope.addInitVar(var);
-	}
-
-	@Override
-	public void exitPtrDeclNormal(PtrDeclNormalContext ctx) {
-		Scope curScope = scopes.get(scopes.size() - 1);
-		String var = ctx.target().getText();
-		if(curScope.exists(var)){
-			addError(ctx, "Variable '" + var + "' is already declared!");
-		}
-		Type lhsType = Type.get(ctx.type().getText());
-		Pointer pointerType = new Pointer(lhsType);
-
-		checkType(pointerType, getType(ctx.expr()), ctx);
-
-		types.put(ctx, pointerType);
-		curScope.put(var, pointerType);
-		result.addType(ctx, pointerType);
-		result.addOffset(ctx, curScope.getOffset(var));
-		result.addNode(ctx);
-		curScope.addInitVar(var);
-	}
-	
-	@Override
 	public void exitPtrDerefExpr(PtrDerefExprContext ctx) {
 		Type type = getType(ctx.expr());
 		String expr = ctx.expr().getText();
@@ -388,7 +411,7 @@ public class TypeChecker extends CracklBaseListener {
 		}
 		types.put(ctx, ((Pointer) getTypeByString(expr)).getTypeObj());
 	}
-	
+
 	@Override
 	public void exitPtrRefExpr(PtrRefExprContext ctx) {
 		Pointer type = new Pointer(getType(ctx.expr()));

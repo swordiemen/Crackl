@@ -2,26 +2,27 @@ grammar Crackl;
 
 program: PROGRAM_START stat;
 
-stat: type ID  (ASSIGN expr)? SEMI  			#decl
-	| type ARRAY ID ASSIGN 
-			LSQ expr (COMMA expr)* RSQ SEMI		#arrayDeclInit
-	| type LSQ expr RSQ ID SEMI					#arrayDecl 
-	| PTRTYPE type ID (PTRASSIGN ID)? SEMI		#ptrDecl
-	| PTRTYPE type target ASSIGN expr SEMI		#ptrDeclNormal
-	| target PTRASSIGN ID SEMI					#ptrAssign
-    | target ASSIGN expr SEMI             		#assignStat
-    | target LSQ expr RSQ ASSIGN expr SEMI      #arrayAssignStat
-    | IF LPAR expr RPAR stat (ELSE stat)? 		#ifStat 
-    | WHILE LPAR expr RPAR stat           		#whileStat 
+stat: GLOBAL? type ID  (ASSIGN expr)? SEMI  			#decl
+	| GLOBAL? type ARRAY ID ASSIGN 
+			LSQ expr (COMMA expr)* RSQ SEMI				#arrayDeclInit
+	| GLOBAL? type LSQ expr RSQ ID SEMI					#arrayDecl 
+	| GLOBAL? PTRTYPE type ID (PTRASSIGN ID)? SEMI		#ptrDecl
+	| GLOBAL? PTRTYPE type target ASSIGN expr SEMI		#ptrDeclNormal
+	| target PTRASSIGN ID SEMI							#ptrAssign
+    | target ASSIGN expr SEMI             				#assignStat
+    | target LSQ expr RSQ ASSIGN expr SEMI     			#arrayAssignStat
+    | IF LPAR expr RPAR stat (ELSE stat)? 				#ifStat 
+    | WHILE LPAR expr RPAR stat           				#whileStat 
     | FOR LPAR ID ASSIGN expr SEMI
                expr SEMI
-               ID ASSIGN expr RPAR stat   		#forStat 
-    | LCURL stat* RCURL                 		#blockStat
-    | func										#funcStat
-    | PRINT LPAR expr RPAR SEMI 				#printExprStat
+               ID ASSIGN expr RPAR stat   				#forStat 
+    | LCURL stat* RCURL                 				#blockStat
+    | func												#funcStat
+    | PRINT LPAR expr RPAR SEMI 						#printExprStat
      ;
     
-func: retType ID LPAR params RPAR LCURL stat* ret? RCURL;    
+func: retType ID LPAR params RPAR LCURL stat* ret? RCURL;
+global: GLOBAL LCURL  RCURL;
 
 ret: 'return ' expr SEMI;
 params: ''|(type ID COMMA)* type ID;
@@ -85,6 +86,7 @@ PRINT: 'print';
 COMMA: ',';
 FUNCTION: 'func';
 VOID: 'void';
+GLOBAL: 'global';
 PTRTYPE: '#';
 DEREF: '@';
 REF: '&';

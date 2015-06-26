@@ -25,6 +25,12 @@ public class Pointer extends Type{
 	}
 	
 	@Override
+	public boolean equals(Object obj){
+		return ((Type) obj).isPointer() &&
+				((Pointer) obj).getTypeObj().equals(getTypeObj());
+	}
+	
+	@Override
 	public Type getTypeObj(){
 		return type;
 	}
