@@ -52,6 +52,7 @@ INTTYPE: 'int';
 BOOLTYPE: 'boolean';
 
 
+
 BOOL: 'true' | 'false';
 ARRAY: LSQ RSQ;
 
@@ -85,6 +86,7 @@ FUNCTION: 'func';
 VOID: 'void';
 PNTTYPE: '#';
 PNTVAR: '@';
+FSLASH: '/';
 
 
 fragment LETTER: [a-zA-Z];
@@ -95,3 +97,4 @@ NUM: DIGIT+;
 STRING: '"' (~["\\] | '\\'.)* '"';
 
 WS: [ \t\r\n]+ -> skip;
+COMMENT: FSLASH FSLASH (~['//'])* '//' -> skip;
