@@ -1,0 +1,8 @@
+Program {
+	int a = 0;
+	#int p1 => a;
+	#int p2 = &a;
+	
+	p2 = &a;
+	p1 = &p2;
+}

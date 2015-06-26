@@ -28,6 +28,7 @@ import grammar.CracklParser.PtrAssignContext;
 import grammar.CracklParser.PtrDeclContext;
 import grammar.CracklParser.PtrDeclNormalContext;
 import grammar.CracklParser.PtrDerefExprContext;
+import grammar.CracklParser.PtrRefExprContext;
 import grammar.CracklParser.RetContext;
 
 import java.util.ArrayList;
@@ -377,17 +378,23 @@ public class TypeChecker extends CracklBaseListener {
 		result.addNode(ctx);
 		curScope.addInitVar(var);
 	}
-
+	
 	@Override
-	public void exitPtrDerefExpr(PtrDerefExprContext ctx)
-	{
-		String var = ctx.expr().getText();
-		isInitialized(var);
-		Type type = getTypeByString(var);
+	public void exitPtrDerefExpr(PtrDerefExprContext ctx) {
+		Type type = getType(ctx.expr());
+		String expr = ctx.expr().getText();
 		if(!(type instanceof Pointer)){
-			addError(ctx, "Variable " + var + " is not a pointer.");
+			addError(ctx, "Expression " + expr + " is not a pointer.");
 		}
-		types.put(ctx, ((Pointer) getTypeByString(var)).getTypeObj());
+		types.put(ctx, ((Pointer) getTypeByString(expr)).getTypeObj());
+	}
+	
+	@Override
+	public void exitPtrRefExpr(PtrRefExprContext ctx) {
+		Pointer type = new Pointer(getType(ctx.expr()));
+		types.put(ctx, type);
+		result.addNode(ctx);
+		result.addType(ctx, type);
 	}
 
 	@Override
@@ -438,6 +445,13 @@ public class TypeChecker extends CracklBaseListener {
 		result.addNode(ctx);
 	}
 
+	/**
+	 * Checks if the type of <code>ctx</code> and <code>expected</code> is equal. Adds an
+	 * error to this TypeChecker if it is not the case.
+	 * @param ctx The context to be checked.
+	 * @param expected The expected type.
+	 * @return bool Whether the types are equal.
+	 */
 	public boolean checkType(RuleContext ctx, Type expected)
 	{
 		boolean res = true;
@@ -455,6 +469,14 @@ public class TypeChecker extends CracklBaseListener {
 		return res;
 	}
 
+	/**
+	 * Checks if the type of <code>actual</code> is equal to <code>expected</code>. Adds an error (with Context <code>ctx</code>) to this Typechecker
+	 * if the types are not equal.
+	 * @param expected The expected type.
+	 * @param actual The actual type.
+	 * @param ctx The context of this check.
+	 * @return bool Whether the types are equal.
+	 */
 	public boolean checkType(Type expected, Type actual, RuleContext ctx){
 		boolean res = true;
 		if(!actual.equals(expected)){
@@ -464,6 +486,14 @@ public class TypeChecker extends CracklBaseListener {
 		return res;
 	}
 
+	/**
+	 * Checks if the Type of a pointer <code>p</code> and <code>actual</code> are equal. Adds an error
+	 * to this TypeChecker if this is not the case.
+	 * @param p The pointer of which the Type should be checked.
+	 * @param actual The actual Type.
+	 * @param ctx The context of this check.
+	 * @return bool Whether the types are equal.
+	 */
 	public boolean checkTypePointer(Pointer p, Type actual, RuleContext ctx){
 		boolean res = true;
 		Type pointerType = p.getTypeObj();
@@ -474,6 +504,13 @@ public class TypeChecker extends CracklBaseListener {
 		return res;
 	}
 
+	/**
+	 * Returns the type of a given RuleContext. First checks the current scope, and then goes upward. 
+	 * Returns <code>null</code> if the variable has not been found. Also adds an error to this TypeChecker
+	 * if that is the case.
+	 * @param ctx The context of which the type should be returned.
+	 * @return type The type of the context.
+	 */
 	public Type getType(RuleContext ctx)
 	{
 		String var = ctx.getText();
@@ -498,6 +535,11 @@ public class TypeChecker extends CracklBaseListener {
 		return type;
 	}
 
+	/**
+	 * Returns the Type of a given String (variable name).
+	 * @param var The name of the variable.
+	 * @return type The type of the variable (or null if it hasn't been declared).
+	 */
 	public Type getTypeByString(String var)
 	{
 		Type type = null;
@@ -516,11 +558,21 @@ public class TypeChecker extends CracklBaseListener {
 		return type;
 	}
 
+	/**
+	 * Adds an error message to this TypeChecker.
+	 * @param s The error message.
+	 */
 	public void addError(String s)
 	{
 		errors.add(s);
 	}
 
+	/**
+	 * Adds an error message to this TypeChecker. Also include a Context, so it's possible to know where
+	 * exactly the error occurred.
+	 * @param ctx The context of the error.
+	 * @param error The error message.
+	 */
 	public void addError(RuleContext ctx, String error)
 	{
 		Token start = ((ParserRuleContext) ctx).start;
@@ -528,6 +580,10 @@ public class TypeChecker extends CracklBaseListener {
 		addError(String.format("%s (%s)", error, pos));
 	}
 
+	/**
+	 * Returns the Result class of this TypeChecker.
+	 * @return result The Result class of this TypeChecker.
+	 */
 	public Result getResult(){
 		return result;
 	}

@@ -43,6 +43,7 @@ expr: expr DOT ID                   #fieldExpr
     | expr (LT | GT | EQ | NE) expr #compExpr
     | LPAR expr RPAR                #parExpr
     | DEREF expr					#ptrDerefExpr
+    | REF expr						#ptrRefExpr
     | NUM				            #constNumExpr
     | BOOL							#constBoolExpr
     | ID                            #idExpr
@@ -50,6 +51,7 @@ expr: expr DOT ID                   #fieldExpr
 
 INTTYPE: 'int';
 BOOLTYPE: 'boolean';
+
 
 
 BOOL: 'true' | 'false';
@@ -85,7 +87,8 @@ FUNCTION: 'func';
 VOID: 'void';
 PTRTYPE: '#';
 DEREF: '@';
-
+REF: '&';
+FSLASH: '/';
 
 fragment LETTER: [a-zA-Z];
 fragment DIGIT: [0-9];
@@ -95,3 +98,4 @@ NUM: DIGIT+;
 STRING: '"' (~["\\] | '\\'.)* '"';
 
 WS: [ \t\r\n]+ -> skip;
+COMMENT: FSLASH FSLASH (~['//'])* '//' -> skip;

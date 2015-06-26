@@ -17,13 +17,26 @@ public class Type {
 
 	public Types type;
 
+	/**
+	 * Creates a new Type, given a Types t.
+	 * @param t The Types of this Type.
+	 */
 	public Type(Types t) {
 		this.type = t;
 	}
+	
+	/**
+	 * Returns a new Type object of this Type.
+	 * @return
+	 */
 	public Type getTypeObj(){
 		return this;
 	}
 	
+	/**
+	 * Returns the Types type of this Type.
+	 * @return type The Types of this Type.
+	 */
 	public Types getType(){
 		return type;
 	}
@@ -58,10 +71,18 @@ public class Type {
 				(isPointer() == ((Type) obj).isPointer());	
 	}
 
+	/**
+	 * Returns true if this is an Array.
+	 * @return bool Whether this is an array.
+	 */
 	public boolean isArray(){
 		return type == Types.Array;
 	}
 	
+	/**
+	 * Returns true if this is a pointer.
+	 * @return bool Whether this is a pointer.
+	 */
 	public boolean isPointer(){
 		return type == Types.Pointer;
 	}
