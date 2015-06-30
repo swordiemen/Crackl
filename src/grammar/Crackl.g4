@@ -35,7 +35,7 @@ target: ID;
 type: INTTYPE | BOOLTYPE;
 retType: type | VOID;
 
-funcCall: ID LPAR expr* RPAR;
+funcCall: ID LPAR (expr? | (expr (COMMA expr)*)) RPAR;
 
 expr: expr DOT ID                   #fieldExpr
     | funcCall						#funcExpr

@@ -20,9 +20,11 @@ import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.TokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
+import org.antlr.v4.runtime.tree.ParseTreeProperty;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 
 import analysis.Result;
+import analysis.Scope;
 import analysis.TypeChecker;
 
 public class Compiler {
@@ -49,7 +51,8 @@ public class Compiler {
 		walker.walk(checker, tree);
 		if(!checker.hasErrors()){
 			Result result = checker.getResult();
-			Generator generator = new Generator(result);
+			
+			Generator generator = new Generator(result,checker.functions);
 			try{
 				generator.visit(tree);
 			}catch(Exception e){

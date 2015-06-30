@@ -105,12 +105,8 @@ public class MemoryLocation {
 
 	public boolean isOnStack()
 	{
-		return(scopeOffset==0);
+		return this.getScope().getScope() != null;
 	}
 
-	public int getTotalOffsetRev()
-	{
-		int result = getScope().getStackSize() - getTotalOffset()-1;
-		return result;
-	}
+
 }

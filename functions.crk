@@ -1,16 +1,32 @@
 Program {
 
-	func int double(int x){
-		int a = 1;
-		int b = 3;
-
-		print(x);
-		return x;
+	func int mult(int valA, int valB){
+		int result = valA;
+		while(valB>1){
+			result = result + valA;
+			valB = valB - 1;
+		}
+		print(result);
+		return result;
 	}
 	
+	//print n multiples of mult//
+	func int multiples(int n, int mult){
+		int i = 0;
+		while(i < (n+1)){
+			mult(mult, i);
+			i = i+1;
+		}
+		return 9;
+	}
+
+	
 	main {
-		double(5);
-		print(3);
+		//Expected result: 6, 8 and 9//
+		mult(2,3);
+		mult(2,4);
+		mult(3,3);
+		//multiples(3,3); broken :(//
 	}
 	
 }

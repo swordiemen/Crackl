@@ -16,7 +16,8 @@ public class Scope {
 	private Scope prevScope;
 	private ArrayList<String> initVars;
 	private Map<String, Boolean> varToIsGlobal;
-
+	public boolean isFunction = false;
+	
 	/**
 	 * Creates a new Scope with a given previous scope.
 	 * @param s The scope which is one level above this (null if this is the top scope).
@@ -30,6 +31,11 @@ public class Scope {
 		prevScope = s;
 		stackSize = 0;
 		globSize = Generator.GLOBAL_HEAP_START;
+	}
+	
+	public Scope(Scope s, boolean isFunction){
+		this(s);
+		this.isFunction = isFunction;
 	}
 
 	/**
@@ -107,7 +113,7 @@ public class Scope {
 	 * @return <b>baseAddress</b> The baseAddress of this Scope.
 	 */
 	public int getBaseAddress(){
-		if(prevScope == null){ //top level Scope
+		if(prevScope == null ){ //top level Scope
 			return 0;
 		}
 		return prevScope.getLocalSize() + prevScope.getBaseAddress();
@@ -176,7 +182,7 @@ public class Scope {
 		Boolean global = isGlobal(var);
 
 		if(global != null){
-			memLoc = new MemoryLocation(this, getOffset(var), isGlobal(var));
+			memLoc = new MemoryLocation(this, getOffset(var), global);
 		}else if(prevScope == null && global == null){
 			return null;
 		}else{
@@ -184,10 +190,53 @@ public class Scope {
 		}
 		return memLoc;
 	}
+	
+	
 
 	public int getStackSize()
 	{
-		return stackSize;
+		int result = stackSize;
+//		if(getScope()!=null){
+//			result += getScope().getStackSize();
+//		}
+		return result;
+	}
+	
+	
+//	private int stackSize;
+//	private int localHeapSize = Generator.LOCAL_HEAP_START;
+//	private int globSize;
+//	private Map<String, Type> types;
+//	private Map<String, Integer> offsets;
+//	private Map<String, Integer> globalOffsets;
+//	private Scope prevScope;
+//	private ArrayList<String> initVars;
+//	private Map<String, Boolean> varToIsGlobal;
+//	public boolean isFunction = false;
+	@Override
+	public String toString()
+	{
+		String info = String.format("Scope:\n\tStackSize: %d\n\tglobSize: %d\n\tisFunction %b\n", stackSize, globSize, isFunction);
+		info += "\tinitVars: "+initVars;
+		info += "\ttypes: "+types;
+		info += "\toffsets: "+offsets;
+		return info;
+	}
+
+	/**
+	 * @return how far from the sp the variable is located, given that your in 'currentScope'
+	 */
+	public int getStackOffset(String var)
+	{
+		int offset = getStackSize();
+		if(!this.exists(var)){
+			offset += this.getScope().getStackOffset(var);
+		}else{
+			offset -= this.getOffset(var);
+			offset --;
+		}
+		return offset;
+		
 	}
 
 }

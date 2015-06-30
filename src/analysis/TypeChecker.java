@@ -1,5 +1,6 @@
 package analysis;
 
+import generation.Function;
 import grammar.CracklBaseListener;
 import grammar.CracklParser.AddExprContext;
 import grammar.CracklParser.AndExprContext;
@@ -34,6 +35,7 @@ import grammar.CracklParser.RetContext;
 import grammar.CracklParser.TypeContext;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import org.antlr.v4.runtime.ParserRuleContext;
@@ -47,6 +49,8 @@ public class TypeChecker extends CracklBaseListener {
 	ParseTreeProperty<Type> types;
 	ArrayList<String> errors;
 	ArrayList<Scope> scopes;
+    public HashMap<String,Function> functions = new HashMap<String,Function>();
+    private Function currentFunction;
 	Result result;
 
 	public TypeChecker(){
@@ -73,7 +77,10 @@ public class TypeChecker extends CracklBaseListener {
 			newScope.addInitVar(var);
 			result.addType(ctx, lhsType);
 			result.addOffset(ctx, newScope.getOffset(var));
+			System.out.println(newScope.getBaseAddress());
 			result.addNode(ctx);
+			
+			currentFunction.params.add(var);
 		}
 	}
 	
@@ -101,6 +108,10 @@ public class TypeChecker extends CracklBaseListener {
 		}
 
 		Scope scope = new Scope(lastScope);
+		MemoryLocation memLoc = scope.getMemLoc("x");
+		if(memLoc!=null){
+			System.out.println(memLoc.getScopeOffset());
+		}
 		scopes.add(scope);
 	}
 
@@ -325,8 +336,13 @@ public class TypeChecker extends CracklBaseListener {
 		lastScope = scopes.get(scopes.size() - 1);
 		assert(lastScope.getScope() == null); //should be the outter scope! or something
 
-		Scope newScope = new Scope(lastScope);
+		Scope newScope = new Scope(lastScope, true);
+		System.out.println(newScope.getBaseAddress());
+		System.out.println(newScope.getGlobalBaseAddress());
 		scopes.add(newScope);
+		
+		currentFunction = new Function(ctx.ID().getText());
+		functions.put(ctx.ID().getText(), currentFunction);
 	}
 
 	@Override
@@ -354,11 +370,10 @@ public class TypeChecker extends CracklBaseListener {
 			//			result.addNode(ctx);
 			System.out.println("Build succeeded without typecheck errors.");
 			for(ParserRuleContext prc : result.getNodes()){
-				System.out.println("----------------" + prc.getText() + "----------------");
+				//System.out.println("----------------" + prc.getText() + "----------------");
 				Type type = types.get(prc);
 				System.out.println(type);
 				if(type instanceof Array){
-					System.out.println("HEYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY");
 				}
 			}
 			//			for(ParserRuleContext prc : result.getNodes()){		// testing 
