@@ -3,8 +3,7 @@ grammar Crackl;
 program: PROGRAM_START stat;
 
 stat: GLOBAL? type ID  (ASSIGN expr)? SEMI  		#decl
-	| GLOBAL? type ARRAY ID ASSIGN 
-			LSQ expr (COMMA expr)* RSQ SEMI			#arrayDeclInit
+	| GLOBAL? type ARRAY ID ASSIGN expr SEMI		#arrayDeclInit
 	| GLOBAL? type LSQ expr RSQ ID SEMI				#arrayDecl 
 	| GLOBAL? PTRTYPE type ID (PTRASSIGN ID)? SEMI	#ptrDecl
 	| GLOBAL? PTRTYPE type ID ASSIGN ID SEMI		#ptrDeclNormal
@@ -25,7 +24,7 @@ stat: GLOBAL? type ID  (ASSIGN expr)? SEMI  		#decl
     | UNLOCK LPAR ID RPAR							#unlockStat
      ;
     
-funcDecl: FUNC retType ID LPAR params RPAR LCURL stat* ret RCURL;
+funcDecl: FUNC retType ID LPAR params RPAR LCURL stat* ret? RCURL;
 mainfunc: MAIN LCURL stat* RCURL;
 global: GLOBAL LCURL  RCURL;
 
@@ -41,6 +40,7 @@ funcCall: ID LPAR (expr? | (expr (COMMA expr)*)) RPAR;
 
 expr: funcCall						#funcExpr
     | ID LSQ expr RSQ				#arrayIndexExpr
+    | LSQ expr (COMMA expr)			#arrayExpr
     | NOT expr                      #notExpr
     | expr (PLUS | MINUS) expr      #addExpr
     | expr AND expr                 #andExpr

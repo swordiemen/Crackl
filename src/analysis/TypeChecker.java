@@ -6,6 +6,7 @@ import grammar.CracklParser.AndExprContext;
 import grammar.CracklParser.ArrayAssignStatContext;
 import grammar.CracklParser.ArrayDeclContext;
 import grammar.CracklParser.ArrayDeclInitContext;
+import grammar.CracklParser.ArrayExprContext;
 import grammar.CracklParser.ArrayIndexExprContext;
 import grammar.CracklParser.AssignStatContext;
 import grammar.CracklParser.BlockStatContext;
@@ -46,6 +47,8 @@ import org.antlr.v4.runtime.tree.ParseTreeProperty;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
 public class TypeChecker extends CracklBaseListener {
+
+	public static final String VOIDSTRING = "void";
 
 	ParseTreeProperty<Type> types;
 	ParseTreeProperty< ArrayList<Type>> paramTypes;
@@ -204,22 +207,14 @@ public class TypeChecker extends CracklBaseListener {
 		if(global && (scopes.size() > 1)){
 			addError(ctx, "Global variables may only be defined in the outer scope.");
 		}
-		Type type = types.get(ctx.expr(0));
-		int size = type.getSize();
-		boolean correct = true;
-		for(int i = 1; i < ctx.expr().size(); i++){
-			if(!checkType(ctx.expr(i), type)){
-				correct = false;
-				type = Type.ERR;
-				break;
-			}
-			size += types.get(ctx.expr(i)).getSize();
-		}
-		Array rhsType = null;
-		if(correct){		
+		Type type = types.get(ctx.expr());
+		boolean correct = checkType(type, types.get(ctx.expr()),ctx);
+		Array rhsType = (Array) types.get(ctx.expr());
+		if(correct){
+			int size = rhsType.getSize();
 			rhsType = new Array(type);
 			rhsType.setSize(size);
-			rhsType.setLength(ctx.expr().size());
+			rhsType.setLength(rhsType.getLength());
 		}else{
 			addError(ctx,"Incorrect initialization of array.");
 		}
@@ -342,19 +337,46 @@ public class TypeChecker extends CracklBaseListener {
 	public void exitFuncDecl(FuncDeclContext ctx)
 	{
 		Type retType = Type.get(ctx.retType().getText());
+		boolean isVoid = retType == Type.VOID;
 		String functionName = ctx.ID().getText();
+
+		if(isVoid){
+			if(ctx.ret() != null){
+				addError(ctx, "Function" + functionName + " has a return statement, but its return type is void.");
+			}
+		}
 		if(funcTypes.containsKey(ctx)){
 			addError(ctx, String.format("Function '%s' already exists.", functionName));
 		}else{
 			funcTypes.put(functionName, retType);
-			funcParams.put(functionName, paramTypes.get(ctx.params()));
-			checkType(ctx.ret().expr(), retType);
-
-			Scope removeScope = scopes.get(scopes.size() - 1);
-			scopes.remove(scopes.size() - 1);
-			result.addScope(ctx, removeScope);
-			result.addNode(ctx);
+			if(!isVoid){
+				if(ctx.ret()==null){
+					addError(ctx, "Function '" + functionName + "' has no return statement (expects " + retType + ").");
+				}else{
+					checkType(ctx.ret().expr(), retType);
+				}
+			}
 		}
+
+		funcParams.put(functionName, paramTypes.get(ctx.params()));
+		Scope removeScope = scopes.get(scopes.size() - 1);
+		scopes.remove(scopes.size() - 1);
+		result.addScope(ctx, removeScope);
+		result.addNode(ctx);
+	}
+	
+	@Override
+	public void exitArrayExpr(ArrayExprContext ctx) {
+		int i;
+		Type type = types.get(ctx.expr(0));
+		for(i = 1; i < ctx.expr().size(); i++){
+			checkType(type, types.get(ctx.expr(i)), ctx);
+		}
+		System.out.println(i + " ASD ASD AD ASD ASD ASD ASD ASD ");
+		Array arrayType = new Array(type);
+		arrayType.setLength(i);
+		arrayType.setLength(i * type.getSize());
+		types.put(ctx, new Array(type));
 	}
 
 	@Override
@@ -523,7 +545,7 @@ public class TypeChecker extends CracklBaseListener {
 
 	@Override
 	public void exitFuncDeclStat(FuncDeclStatContext ctx) {
-	//	types.put(ctx, getType(ctx.funcDecl()));
+		//	types.put(ctx, getType(ctx.funcDecl()));
 
 	}
 

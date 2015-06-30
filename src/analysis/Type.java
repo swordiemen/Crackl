@@ -5,7 +5,7 @@ import java.util.Map;
 public class Type {
 
 	public enum Types {
-		Bool, Int, Err, Array, Pointer
+		Bool, Int, Err, Array, Pointer, Void
 	}
 	
 	
@@ -13,6 +13,7 @@ public class Type {
 	public static final Type BOOL = new Type(Types.Bool);
 	public static final Type INT = new Type(Types.Int);
 	public static final Type ERR = new Type(Types.Bool);
+	public static final Type VOID = new Type(Types.Void);
 	//protected Array array;
 
 	public Types type;
@@ -105,6 +106,9 @@ public class Type {
 			case "err":
 				return ERR;
 
+			case "void":
+				return VOID;
+				
 			default:
 				throw new IllegalArgumentException(type);
 			}
@@ -118,8 +122,10 @@ public class Type {
 			return "integer";
 		case Err:
 			return "Invalid type";
+		case Void:
+			return "void";
 		default:
-			return "Error in toString() of Type.java";
+			return "Cannot get the toString() of unexpected type " + this.type;
 		}
 	}
 	
