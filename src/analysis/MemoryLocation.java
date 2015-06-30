@@ -5,7 +5,6 @@ public class MemoryLocation {
 	private int scopeOffset;
 	private int varOffset;
 	private boolean global;
-	public static final int STACK_START_ADDR = 127;
 
 //	/**
 //	 * Creates a new MemoryLocation with default values.
@@ -26,7 +25,7 @@ public class MemoryLocation {
 			scopeOffset = s.getGlobalBaseAddress();
 			setVarOffset(vo);
 		}else{
-			scopeOffset = STACK_START_ADDR - s.getBaseAddress();
+			scopeOffset = s.getBaseAddress();
 			setVarOffset(vo);
 		}
 	}
@@ -83,7 +82,7 @@ public class MemoryLocation {
 	}
 	
 	public int getTotalOffset(){
-		return scopeOffset - getVarOffset();
+		return scopeOffset + getVarOffset();
 	}
 
 	@Override
@@ -102,5 +101,16 @@ public class MemoryLocation {
 
 	public void setGlobal(boolean glob){
 		global = glob;
+	}
+
+	public boolean isOnStack()
+	{
+		return(scopeOffset==0);
+	}
+
+	public int getTotalOffsetRev()
+	{
+		int result = getScope().getStackSize() - getTotalOffset()-1;
+		return result;
 	}
 }

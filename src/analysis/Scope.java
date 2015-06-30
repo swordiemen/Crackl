@@ -1,12 +1,14 @@
 package analysis;
 
+import generation.Generator;
+
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class Scope {
-	private int size;
+	private int stackSize;
+	private int localHeapSize = Generator.LOCAL_HEAP_START;
 	private int globSize;
 	private Map<String, Type> types;
 	private Map<String, Integer> offsets;
@@ -26,8 +28,8 @@ public class Scope {
 		varToIsGlobal = new HashMap<String, Boolean>();
 		globalOffsets = new HashMap<String, Integer>();
 		prevScope = s;
-		size = 0;
-		globSize = 0;
+		stackSize = 0;
+		globSize = Generator.GLOBAL_HEAP_START;
 	}
 
 	/**
@@ -85,8 +87,14 @@ public class Scope {
 				globalOffsets.put(var, globSize);
 				globSize += type.getSize();
 			}else{
-				offsets.put(var, size);
-				size += type.getSize();
+				if(this.prevScope==null){
+					//store on local heap
+					offsets.put(var, localHeapSize);
+					localHeapSize += type.getSize();
+				}else{
+					offsets.put(var, stackSize);
+					stackSize += type.getSize();
+				}
 			}
 			varToIsGlobal.put(var, glob);
 		}else{
@@ -117,7 +125,7 @@ public class Scope {
 	 * @return <b>size</b> The size of this Scope.
 	 */
 	private int getLocalSize() {
-		return size;
+		return stackSize;
 	}
 
 	public int getGlobalSize(){
@@ -165,21 +173,21 @@ public class Scope {
 	 */
 	public MemoryLocation getMemLoc(String var){
 		MemoryLocation memLoc = null;
-		boolean global = isGlobal(var);
-		Integer offset;
-		if(global){
-			offset = globalOffsets.get(var);
-		}else{
-			offset = offsets.get(var);
-		}
-		if(offset != null){
+		Boolean global = isGlobal(var);
+
+		if(global != null){
 			memLoc = new MemoryLocation(this, getOffset(var), isGlobal(var));
-		}else if(prevScope == null && offset == null){
+		}else if(prevScope == null && global == null){
 			return null;
 		}else{
 			return prevScope.getMemLoc(var);
 		}
 		return memLoc;
+	}
+
+	public int getStackSize()
+	{
+		return stackSize;
 	}
 
 }

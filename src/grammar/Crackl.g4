@@ -7,8 +7,8 @@ stat: GLOBAL? type ID  (ASSIGN expr)? SEMI  			#decl
 			LSQ expr (COMMA expr)* RSQ SEMI				#arrayDeclInit
 	| GLOBAL? type LSQ expr RSQ ID SEMI					#arrayDecl 
 	| GLOBAL? PTRTYPE type ID (PTRASSIGN ID)? SEMI		#ptrDecl
-	| GLOBAL? PTRTYPE type target ASSIGN expr SEMI		#ptrDeclNormal
-	| target PTRASSIGN ID SEMI							#ptrAssign
+	| GLOBAL? PTRTYPE type ID ASSIGN ID SEMI		#ptrDeclNormal
+	| ID PTRASSIGN ID SEMI							#ptrAssign
     | target ASSIGN expr SEMI             				#assignStat
     | target LSQ expr RSQ ASSIGN expr SEMI     			#arrayAssignStat
     | IF LPAR expr RPAR stat (ELSE stat)? 				#ifStat 
@@ -17,11 +17,14 @@ stat: GLOBAL? type ID  (ASSIGN expr)? SEMI  			#decl
                expr SEMI
                ID ASSIGN expr RPAR stat   				#forStat 
     | LCURL stat* RCURL                 				#blockStat
-    | func												#funcStat
+    | funcCall SEMI										#funcCallStat
+    | mainfunc											#mainFuncStat
+    | funcDecl											#funcDeclStat
     | PRINT LPAR expr RPAR SEMI 						#printExprStat
      ;
     
-func: retType ID LPAR params RPAR LCURL stat* ret? RCURL;
+funcDecl: FUNC retType ID LPAR params RPAR LCURL stat* ret RCURL;
+mainfunc: MAIN LCURL stat* RCURL;
 global: GLOBAL LCURL  RCURL;
 
 ret: 'return ' expr SEMI;
@@ -32,7 +35,7 @@ target: ID;
 type: INTTYPE | BOOLTYPE;
 retType: type | VOID;
 
-funcCall: ID LPAR expr RPAR;
+funcCall: ID LPAR expr* RPAR;
 
 expr: expr DOT ID                   #fieldExpr
     | funcCall						#funcExpr
@@ -43,8 +46,8 @@ expr: expr DOT ID                   #fieldExpr
     | expr OR  expr                 #orExpr
     | expr (LT | GT | EQ | NE) expr #compExpr
     | LPAR expr RPAR                #parExpr
-    | DEREF expr					#ptrDerefExpr
-    | REF expr						#ptrRefExpr
+    | DEREF ID						#ptrDerefExpr
+    | REF ID						#ptrRefExpr
     | NUM				            #constNumExpr
     | BOOL							#constBoolExpr
     | ID                            #idExpr
@@ -84,18 +87,20 @@ ELSE: 'else';
 FOR: 'for';
 PRINT: 'print';
 COMMA: ',';
-FUNCTION: 'func';
 VOID: 'void';
 GLOBAL: 'global';
 PTRTYPE: '#';
 DEREF: '@';
 REF: '&';
 FSLASH: '/';
+FUNC: 'func';
+MAIN: 'main';
 
 fragment LETTER: [a-zA-Z];
 fragment DIGIT: [0-9];
+fragment UNDERSCORE: '_';
 
-ID: LETTER (LETTER | DIGIT)*;
+ID: LETTER (LETTER | DIGIT | UNDERSCORE)*;
 NUM: DIGIT+;
 STRING: '"' (~["\\] | '\\'.)* '"';
 

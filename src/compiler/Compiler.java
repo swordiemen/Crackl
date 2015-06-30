@@ -53,8 +53,8 @@ public class Compiler {
 			try{
 				generator.visit(tree);
 			}catch(Exception e){
-				System.out.println(formatProgram(generator.getProgram()));
 				e.printStackTrace();
+				//System.out.println(formatProgram(generator.getProgram()));
 			}
 			ArrayList<Line> program = generator.getProgram();
 			System.out.println(program);
@@ -128,7 +128,7 @@ public class Compiler {
 	public static void main(String[] args){
 		Compiler compiler = new Compiler();
 		try {
-			ArrayList<Line> prog = compiler.compile("pointers.crk");
+			ArrayList<Line> prog = compiler.compile("functions.crk");
 			compiler.write("ptest.hs", prog);
 		} catch (IOException e) {
 			e.printStackTrace();

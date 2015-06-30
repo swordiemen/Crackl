@@ -1,6 +1,5 @@
 package machine;
 
-import machine.Operand.Addr;
 
 public class Operand {
 	

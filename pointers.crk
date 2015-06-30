@@ -1,7 +1,7 @@
 Program {
 	global int a = 0;
 	global int b = 1;
-	local int c;
+	int c;
 	global int d;
 	{
 		int f = a;

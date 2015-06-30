@@ -14,14 +14,15 @@ import grammar.CracklParser.ConstBoolExprContext;
 import grammar.CracklParser.ConstNumExprContext;
 import grammar.CracklParser.DeclContext;
 import grammar.CracklParser.FuncCallContext;
-import grammar.CracklParser.FuncContext;
+import grammar.CracklParser.FuncDeclContext;
+import grammar.CracklParser.FuncDeclStatContext;
 import grammar.CracklParser.FuncExprContext;
-import grammar.CracklParser.FuncStatContext;
 import grammar.CracklParser.IdExprContext;
 import grammar.CracklParser.IfStatContext;
 import grammar.CracklParser.NotExprContext;
 import grammar.CracklParser.OrExprContext;
 import grammar.CracklParser.ParExprContext;
+import grammar.CracklParser.ParamsContext;
 import grammar.CracklParser.PrintExprStatContext;
 import grammar.CracklParser.ProgramContext;
 import grammar.CracklParser.PtrAssignContext;
@@ -30,14 +31,16 @@ import grammar.CracklParser.PtrDeclNormalContext;
 import grammar.CracklParser.PtrDerefExprContext;
 import grammar.CracklParser.PtrRefExprContext;
 import grammar.CracklParser.RetContext;
+import grammar.CracklParser.TypeContext;
 
-import java.awt.Cursor;
 import java.util.ArrayList;
+import java.util.List;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.RuleContext;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTreeProperty;
+import org.antlr.v4.runtime.tree.TerminalNode;
 
 public class TypeChecker extends CracklBaseListener {
 
@@ -51,6 +54,33 @@ public class TypeChecker extends CracklBaseListener {
 		errors = new ArrayList<String>();
 		scopes = new ArrayList<Scope>();
 		result = new Result();
+	}
+	
+	@Override
+	public void enterParams(ParamsContext ctx)
+	{
+		Scope newScope = scopes.get(scopes.size()-1);
+
+		List<TypeContext> types = ctx.type();
+		for (int i = 0; i < types.size(); i++) {
+			TerminalNode idCtx = ctx.ID(i);
+			TypeContext typeCtx = ctx.type(i);
+			String var = idCtx.getText();
+			Type lhsType = Type.get(typeCtx.getText());
+
+			this.types.put(idCtx, lhsType);
+			newScope.put(var, lhsType, false);
+			newScope.addInitVar(var);
+			result.addType(ctx, lhsType);
+			result.addOffset(ctx, newScope.getOffset(var));
+			result.addNode(ctx);
+		}
+	}
+	
+	@Override
+	public void enterRet(RetContext ctx)
+	{
+		types.put(ctx, types.get(ctx.expr()));
 	}
 
 	@Override
@@ -265,14 +295,14 @@ public class TypeChecker extends CracklBaseListener {
 			addError(ctx, "Global variables may only be defined in the outer scope.");
 		}
 		Scope curScope = scopes.get(scopes.size() - 1);
-		String var = ctx.target().getText();
+		String var = ctx.ID(0).getText();
 		if(curScope.exists(var)){
 			addError(ctx, "Variable '" + var + "' is already declared!");
 		}
 		Type lhsType = Type.get(ctx.type().getText());
 		Pointer pointerType = new Pointer(lhsType);
 
-		checkType(pointerType, getType(ctx.expr()), ctx);
+		checkType(pointerType, getTypeByString(ctx.ID(1).getText()), ctx);
 
 		types.put(ctx, pointerType);
 		curScope.put(var, pointerType, global);
@@ -288,13 +318,29 @@ public class TypeChecker extends CracklBaseListener {
 		String var = ctx.getText();
 		isInitialized(var);
 	}
+	
+	@Override
+	public void enterFuncDecl(FuncDeclContext ctx)
+	{
+		Scope lastScope; 
+		lastScope = scopes.get(scopes.size() - 1);
+		assert(lastScope.getScope() == null); //should be the outter scope! or something
+
+		Scope newScope = new Scope(lastScope);
+		scopes.add(newScope);
+	}
 
 	@Override
-	public void exitFunc(FuncContext ctx)
+	public void exitFuncDecl(FuncDeclContext ctx)
 	{
 		Type retType = Type.get(ctx.retType().getText());
 		types.put(ctx, retType);
-		checkType(ctx.ret(), retType);
+		checkType(ctx.ret().expr(), retType);
+
+		Scope removeScope = scopes.get(scopes.size() - 1);
+		scopes.remove(scopes.size() - 1);
+		result.addScope(ctx, removeScope);
+		result.addNode(ctx);
 	}
 
 	@Override
@@ -353,12 +399,6 @@ public class TypeChecker extends CracklBaseListener {
 	}
 
 	@Override
-	public void exitRet(RetContext ctx)
-	{
-		types.put(ctx, types.get(ctx.expr()));
-	}
-
-	@Override
 	public void exitAddExpr(AddExprContext ctx) {
 		if(checkType(ctx.expr(0), Type.INT) && checkType(ctx.expr(1), Type.INT)){
 			types.put(ctx, Type.INT);
@@ -374,9 +414,12 @@ public class TypeChecker extends CracklBaseListener {
 	public void exitFuncExpr(FuncExprContext ctx) {
 		types.put(ctx, getType(ctx.funcCall()));
 	}
+	
+
 
 	@Override
 	public void exitFuncCall(FuncCallContext ctx) {
+		//types.put(ctx, getTypeByString(ctx.ID().getText()));
 		//TODO Params type checken.
 	}
 
@@ -394,35 +437,35 @@ public class TypeChecker extends CracklBaseListener {
 
 	@Override
 	public void exitPtrAssign(PtrAssignContext ctx) {
-		String var = ctx.ID().getText();
+		String var = ctx.ID(0).getText();
 		if(isInitialized(var)){
-			Type idType = getTypeByString(ctx.ID().getText());
-			Pointer p = (Pointer) getTypeByString(ctx.target().getText());
+			Type idType = getTypeByString(ctx.ID(0).getText());
+			Pointer p = (Pointer) getTypeByString(ctx.ID(1).getText());
 			checkTypePointer(p, idType, ctx);
 		}
 	}
 
 	@Override
 	public void exitPtrDerefExpr(PtrDerefExprContext ctx) {
-		Type type = getType(ctx.expr());
-		String expr = ctx.expr().getText();
+		Type type = getTypeByString(ctx.ID().getText());
 		if(!(type instanceof Pointer)){
-			addError(ctx, "Expression " + expr + " is not a pointer.");
+			addError(ctx, ctx.ID().getText()+" is not a pointer.");
+		}else{
+			types.put(ctx, ((Pointer) type).getTypeObj());
 		}
-		types.put(ctx, ((Pointer) getTypeByString(expr)).getTypeObj());
 	}
 
 	@Override
 	public void exitPtrRefExpr(PtrRefExprContext ctx) {
-		Pointer type = new Pointer(getType(ctx.expr()));
+		Pointer type = new Pointer(getTypeByString(ctx.ID().getText()));
 		types.put(ctx, type);
 		result.addNode(ctx);
 		result.addType(ctx, type);
 	}
 
 	@Override
-	public void exitFuncStat(FuncStatContext ctx) {
-		types.put(ctx, getType(ctx.func()));
+	public void exitFuncDeclStat(FuncDeclStatContext ctx) {
+		types.put(ctx, getType(ctx.funcDecl()));
 	}
 
 	@Override
