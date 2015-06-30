@@ -284,7 +284,6 @@ public class TypeChecker extends CracklBaseListener {
 		result.addOffset(ctx, curScope.getOffset(var));
 		result.addNode(ctx);
 		curScope.addInitVar(var);
-
 	}
 
 	
