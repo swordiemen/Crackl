@@ -8,4 +8,11 @@ Program {
 		int g = b;
 	}
 	global int i;
+	
+	func int hey(int a, boolean f){
+		int b = a;
+		return a;
+	}
+	
+	int boo = hey(false);
 }
