@@ -479,7 +479,12 @@ public class TypeChecker extends CracklBaseListener {
 				addError(ctx, String.format("Invalid amount of arguments for function '%s', expected %d but got %d.", funcName, funcParamsAmount, actualAmount));
 			}else{
 				for(int i = 0; i < actualAmount; i++){
-					checkType(funcParams.get(funcName).get(i), types.get(ctx.expr(i)), ctx);
+					Type type = types.get(ctx.expr(i));
+					if(type!=null){
+						checkType(funcParams.get(funcName).get(i),type , ctx);
+					}else{
+						System.out.println("Warning: function referenced before declaration: "+funcName);
+					}
 				}
 			}
 		}

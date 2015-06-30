@@ -433,6 +433,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		addSave(ctx.ID().getText(), rArrayPointer);
 
 		int i = 0;
+		/** TODO: arrays broken by grammar change
 		for (i = 0; i < ctx.expr().size(); i++) {
 			visit(ctx.expr(i));
 			Reg rExpr = popReg();
@@ -440,6 +441,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 			add(Compute, operator(Add), rOne, rArrayPointer, rArrayPointer);
 			freeReg(rExpr);
 		}
+		**/
 
 		// Write back rArrayPointer to the heapEnd pointer
 		add(Write, rArrayPointer, memAddr(MEMADDR_HEAP_POINTER));
