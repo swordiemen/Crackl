@@ -19,6 +19,7 @@ import grammar.CracklParser.FuncDeclStatContext;
 import grammar.CracklParser.FuncExprContext;
 import grammar.CracklParser.IdExprContext;
 import grammar.CracklParser.IfStatContext;
+import grammar.CracklParser.LockStatContext;
 import grammar.CracklParser.NotExprContext;
 import grammar.CracklParser.OrExprContext;
 import grammar.CracklParser.ParExprContext;
@@ -32,8 +33,10 @@ import grammar.CracklParser.PtrDerefExprContext;
 import grammar.CracklParser.PtrRefExprContext;
 import grammar.CracklParser.RetContext;
 import grammar.CracklParser.TypeContext;
+import grammar.CracklParser.UnlockStatContext;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import org.antlr.v4.runtime.ParserRuleContext;
@@ -45,17 +48,23 @@ import org.antlr.v4.runtime.tree.TerminalNode;
 public class TypeChecker extends CracklBaseListener {
 
 	ParseTreeProperty<Type> types;
+	ParseTreeProperty< ArrayList<Type>> paramTypes;
 	ArrayList<String> errors;
 	ArrayList<Scope> scopes;
 	Result result;
+	HashMap<String, ArrayList<Type>> funcParams;
+	HashMap<String, Type> funcTypes;
 
 	public TypeChecker(){
 		types = new ParseTreeProperty<Type>();
+		paramTypes = new ParseTreeProperty<ArrayList<Type>>(); //no ParseTreeContex, since it's missing keySet().
 		errors = new ArrayList<String>();
 		scopes = new ArrayList<Scope>();
 		result = new Result();
+		funcParams = new HashMap<String, ArrayList<Type>>();
+		funcTypes = new HashMap<String, Type>();
 	}
-	
+
 	@Override
 	public void enterParams(ParamsContext ctx)
 	{
@@ -76,7 +85,7 @@ public class TypeChecker extends CracklBaseListener {
 			result.addNode(ctx);
 		}
 	}
-	
+
 	@Override
 	public void enterRet(RetContext ctx)
 	{
@@ -286,7 +295,7 @@ public class TypeChecker extends CracklBaseListener {
 		curScope.addInitVar(var);
 	}
 
-	
+
 	@Override
 	public void exitPtrDeclNormal(PtrDeclNormalContext ctx) {
 		boolean global = (ctx.GLOBAL() != null);
@@ -310,20 +319,20 @@ public class TypeChecker extends CracklBaseListener {
 		result.addNode(ctx);
 		curScope.addInitVar(var);
 	}
-	
+
 	@Override
 	public void exitIdExpr(IdExprContext ctx)
 	{
 		String var = ctx.getText();
 		isInitialized(var);
 	}
-	
+
 	@Override
 	public void enterFuncDecl(FuncDeclContext ctx)
 	{
 		Scope lastScope; 
 		lastScope = scopes.get(scopes.size() - 1);
-		assert(lastScope.getScope() == null); //should be the outter scope! or something
+		assert(lastScope.getScope() == null); //should be the outer scope! or something
 
 		Scope newScope = new Scope(lastScope);
 		scopes.add(newScope);
@@ -333,13 +342,19 @@ public class TypeChecker extends CracklBaseListener {
 	public void exitFuncDecl(FuncDeclContext ctx)
 	{
 		Type retType = Type.get(ctx.retType().getText());
-		types.put(ctx, retType);
-		checkType(ctx.ret().expr(), retType);
+		String functionName = ctx.ID().getText();
+		if(funcTypes.containsKey(ctx)){
+			addError(ctx, String.format("Function '%s' already exists.", functionName));
+		}else{
+			funcTypes.put(functionName, retType);
+			funcParams.put(functionName, paramTypes.get(ctx.params()));
+			checkType(ctx.ret().expr(), retType);
 
-		Scope removeScope = scopes.get(scopes.size() - 1);
-		scopes.remove(scopes.size() - 1);
-		result.addScope(ctx, removeScope);
-		result.addNode(ctx);
+			Scope removeScope = scopes.get(scopes.size() - 1);
+			scopes.remove(scopes.size() - 1);
+			result.addScope(ctx, removeScope);
+			result.addNode(ctx);
+		}
 	}
 
 	@Override
@@ -411,15 +426,27 @@ public class TypeChecker extends CracklBaseListener {
 
 	@Override
 	public void exitFuncExpr(FuncExprContext ctx) {
-		types.put(ctx, getType(ctx.funcCall()));
+		types.put(ctx, types.get(ctx.funcCall()));
 	}
-	
-
 
 	@Override
 	public void exitFuncCall(FuncCallContext ctx) {
-		//types.put(ctx, getTypeByString(ctx.ID().getText()));
-		//TODO Params type checken.
+		String funcName = ctx.ID().getText();
+		Type funcType = funcTypes.get(funcName);
+		if(funcType == null){
+			addError(ctx, "Function " + funcName + " does not exist.");
+		}else{
+			types.put(ctx, funcType);
+			int funcParamsAmount = funcParams.get(funcName).size();
+			int actualAmount = ctx.expr().size();
+			if(funcParamsAmount != actualAmount){
+				addError(ctx, String.format("Invalid amount of arguments for function '%s', expected %d but got %d.", funcName, funcParamsAmount, actualAmount));
+			}else{
+				for(int i = 0; i < actualAmount; i++){
+					checkType(funcParams.get(funcName).get(i), types.get(ctx.expr(i)), ctx);
+				}
+			}
+		}
 	}
 
 	@Override
@@ -463,8 +490,41 @@ public class TypeChecker extends CracklBaseListener {
 	}
 
 	@Override
+	public void exitLockStat(LockStatContext ctx) {
+		String var = ctx.ID().getText();
+		Type type = getTypeByString(var);
+		if(type == null){
+			addError(ctx, String.format("Variable '%s' has not yet been declared.",var));
+		}
+	}
+
+	@Override
+	public void exitUnlockStat(UnlockStatContext ctx) {
+		String var = ctx.ID().getText();
+		Type type = getTypeByString(var);
+		if(type == null){
+			addError(ctx, String.format("Variable '%s' has not yet been declared.",var));
+		}
+	}
+
+	@Override
+	public void exitParams(ParamsContext ctx) {
+		for(RuleContext tctx : ctx.type()){
+			Type type = Type.get(tctx.getText());
+			if(paramTypes.get(ctx) != null){
+				paramTypes.get(ctx).add(type);
+			}else{
+				ArrayList<Type> list = new ArrayList<Type>();
+				list.add(type);
+				paramTypes.put(ctx, list);
+			}
+		}
+	}
+
+	@Override
 	public void exitFuncDeclStat(FuncDeclStatContext ctx) {
-		types.put(ctx, getType(ctx.funcDecl()));
+	//	types.put(ctx, getType(ctx.funcDecl()));
+
 	}
 
 	@Override
