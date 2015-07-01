@@ -1,39 +1,29 @@
 Program{
-        int size = 8;
-        int[] a = [2,4,6,8];
+
+    int[] arrA = [2,4,6,8]; //elements placed on the shared heap, arrA stored on local heap//
+
+	main{
+		int[3] b;
+	    int[] arrB = [3,6,9]; //elements placed on the shared heap, arrB on stack//
+		boolean boolVal = true;
+		#boolean boolPtr => boolVal;
+		
+		int[3] c;
+		
+		arrA[2+1] = 7;
+		
+		b[2] = 1;
+
         int i = 0;
-        int value = 9;
-        while(i<size){
-                print(a[i]);
-                i=i+1;
-        }
-        
-        int[] boolArray = [true, false, false, true];
-        i = 0;
         while(i<4){
-                print(boolArray[i]);
-                i=i+1;
+			print(arrA[i]);
+			i=i+1;
         }
-        
-        int bigLength = 20;
-        int[bigLength] bigArray;
-        i = 0;
-        while(i < bigLength){
-                if(i>40){
-                        if(i<50){
-                                bigArray[i] = 3;
-                        }else{
-                                bigArray[i] = 4;
-                        }
-                }
-                else bigArray[i] = 6;
-                i = i+1;
+
+		i = 0;
+        while(i<3){
+			print(arrB[i]);
+			i=i+1;
         }
-        
-         i = 0;
-        while(i<bigLength){
-                print(bigArray[i]);
-                i=i+1;
-        }
-        
+	}
 }

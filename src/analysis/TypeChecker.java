@@ -148,7 +148,7 @@ public class TypeChecker extends CracklBaseListener {
 		}else{
 			Array arrType = (Array) type;
 			Type typeOfArray = arrType.getTypeObj();
-			checkType(ctx.expr(0), Type.INT);
+			//checkType(ctx.expr(0), Type.INT); can also be expr
 			checkType(ctx.expr(1), typeOfArray);
 		}
 	}
@@ -253,6 +253,7 @@ public class TypeChecker extends CracklBaseListener {
 		Type type = types.get(ctx.expr());
 		boolean correct = checkType(type, types.get(ctx.expr()),ctx);
 		Array rhsType = (Array) types.get(ctx.expr());
+		/**  Causes wrong types??? e.g. [[Integer]]
 		if(correct){
 			int size = rhsType.getSize();
 			rhsType = new Array(type);
@@ -261,6 +262,7 @@ public class TypeChecker extends CracklBaseListener {
 		}else{
 			addError(ctx,"Incorrect initialization of array.");
 		}
+		**/ 
 
 		String var = ctx.ID().getText();
 		Scope curScope = scopes.get(scopes.size()-1);

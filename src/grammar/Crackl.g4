@@ -43,7 +43,7 @@ funcCall: ID LPAR (expr? | (expr (COMMA expr)*)) RPAR;
 
 expr: funcCall						#funcExpr
     | ID LSQ expr RSQ				#arrayIndexExpr
-    | LSQ expr (COMMA expr)			#arrayExpr
+    | LSQ (expr (COMMA expr)*)?	RSQ		#arrayExpr
     | NOT expr                      #notExpr
     | expr (PLUS | MINUS) expr      #addExpr
     | expr AND expr                 #andExpr

@@ -131,7 +131,7 @@ public class Compiler {
 	public static void main(String[] args){
 		Compiler compiler = new Compiler();
 		try {
-			String program_name = "pointers2.crk";
+			String program_name = "arrays.crk";
 			ArrayList<Line> prog = compiler.compile(program_name);
 			if (false) {
 				compiler.write(program_name + ".hs", prog);

@@ -9,6 +9,7 @@ import grammar.CracklParser.AndExprContext;
 import grammar.CracklParser.ArrayAssignStatContext;
 import grammar.CracklParser.ArrayDeclContext;
 import grammar.CracklParser.ArrayDeclInitContext;
+import grammar.CracklParser.ArrayExprContext;
 import grammar.CracklParser.ArrayIndexExprContext;
 import grammar.CracklParser.AssignDerefContext;
 import grammar.CracklParser.AssignStatContext;
@@ -87,6 +88,10 @@ public class Generator extends CracklBaseVisitor<Op> {
 	public static final int GLOBAL_HEAP_START = LOCAL_HEAP_END + 1;
 	public static final int GLOBAL_HEAP_END = 16 * 1000 * 1000 - 1;
 	public static final int GLOBAL_HEAP_SIZE = GLOBAL_HEAP_START - GLOBAL_HEAP_END;
+
+	// Location of the heap pointer (points to next free space on heap
+	final int MEMADDR_LOCAL_HP = 32;
+	final int MEMADDR_GLOBAL_HP = 8096;
 
 	public Generator(Result result, HashMap<String, Function> functionTable) {
 		this.result = result;
@@ -513,17 +518,13 @@ public class Generator extends CracklBaseVisitor<Op> {
 		pushReg(rAddr);
 		return null;
 	}
-
+	
 	@Override
-	public Op visitArrayDeclInit(ArrayDeclInitContext ctx)
+	public Op visitArrayExpr(ArrayExprContext ctx)
 	{
+		Reg rArrayPointer = addGetGlobalHeappointer();
 		Reg rOne = getFreeReg();
 		add(Const, constOp(1), rOne);
-
-		Reg rArrayPointer = addGetHeappointer();
-		addSave(ctx.ID().getText(), rArrayPointer);
-
-		/** TODO: arrays broken by grammar change
 		int i = 0;
 		for (i = 0; i < ctx.expr().size(); i++) {
 			visit(ctx.expr(i));
@@ -532,14 +533,40 @@ public class Generator extends CracklBaseVisitor<Op> {
 			add(Compute, operator(Add), rOne, rArrayPointer, rArrayPointer);
 			freeReg(rExpr);
 		}
-		**/
+		freeReg(rOne);
+		pushReg(rArrayPointer);
+		return null;
+	}
+
+
+	@Override
+	public Op visitArrayDeclInit(ArrayDeclInitContext ctx)
+	{
+		// GLOBAL? type ARRAY ID ASSIGN expr SEMI		#arrayDeclInit
+		Reg rArrayPointer = addGetGlobalHeappointer();
+		addSave(ctx.ID().getText(), rArrayPointer);
+		freeReg(rArrayPointer);
+
+		visit(ctx.expr()); //visitArrayExpr: i.e. multiple expressions, e.g. [3,6,2]
+		rArrayPointer = popReg(); //new heap end
 
 		// Write back rArrayPointer to the heapEnd pointer
-		add(Write, rArrayPointer, memAddr(MEMADDR_HEAP_POINTER));
-
-		freeReg(rOne);
+		addSaveGlobalHeappointer(rArrayPointer);
 		freeReg(rArrayPointer);
 		return null;
+	}
+	
+	/**
+	 * Write back heappointer
+	 */
+	private void addSaveLocalHeappointer(Reg rHp)
+	{
+		add(Write, rHp, memAddr(MEMADDR_LOCAL_HP));
+	}
+
+	private void addSaveGlobalHeappointer(Reg rHp)
+	{
+		add(Write, rHp, memAddr(MEMADDR_GLOBAL_HP));
 	}
 
 	@Override
@@ -567,42 +594,43 @@ public class Generator extends CracklBaseVisitor<Op> {
 	}
 
 	/**
-	 * Adds instructions to allocate an array on the heap Note: it consumes a registers, which is free'd implicitly!
+	 * Adds instructions to allocate an array on the GLOBAL heap Note: it consumes a registers, which is free'd implicitly!
 	 * 
-	 * @param rArraySize
-	 *            - Register containing the size of the array
-	 * @param variableName
-	 *            - Where (on the stack) to store the array starting pointer
+	 * @param rArraySize *            - Register containing the size of the array
+	 * @param variableName *            - Where (which variable) to store the array starting pointer
 	 */
 	private void addAllocateArray(Reg rArraySize, String variableName)
 	{
 		// Retrieve heappointer
-		Reg rHeapPointer = addGetHeappointer();
+		Reg rHeapPointer = addGetGlobalHeappointer();
 
-		// Store current heappointer at at variable (on the stack, or on the
-		// heap only if global)
+		// Store current heappointer at at variable
 		addSave(variableName, rHeapPointer);
+
 		// MemoryLocation loc = currentScope.getMemLoc(variableName);
 		// add(Store, rHeapPointer, addr(loc.getScopeOffset(),
 		// loc.getVarOffset()));
 
 		// Increase and write back changed heappointer
-		addAllocate(rArraySize, rHeapPointer);
+		addAllocateGlobal(rArraySize, rHeapPointer);
 	}
-
-	// Location of the heap pointer (points to next free space on global heap),
-	// located on the global memory
-	final int MEMADDR_HEAP_POINTER = GLOBAL_HEAP_START;
 
 	/**
 	 * Add instructions to put the current heap pointer (end of heap) in a register
 	 * 
 	 * @return register containing the read pointer
 	 */
-	private Reg addGetHeappointer()
+	private Reg addGetLocalHeappointer()
 	{
 		Reg rHeapPointer = getFreeReg();
-		add(Read, memAddr(MEMADDR_HEAP_POINTER));
+		add(Load, memAddr(MEMADDR_LOCAL_HP), rHeapPointer);
+		return rHeapPointer;
+	}
+
+	private Reg addGetGlobalHeappointer()
+	{
+		Reg rHeapPointer = getFreeReg();
+		add(Read, memAddr(MEMADDR_GLOBAL_HP));
 		add(Receive, rHeapPointer);
 		return rHeapPointer;
 	}
@@ -615,11 +643,10 @@ public class Generator extends CracklBaseVisitor<Op> {
 	 * @param rHeapPointer
 	 *            - Register containing the current end of the heap
 	 */
-	private void addAllocate(Reg rArraySize, Reg rHeapPointer)
+	private void addAllocateGlobal(Reg rArraySize, Reg rHeapPointer)
 	{
 		add(Compute, operator(Add), rArraySize, rHeapPointer, rHeapPointer);
-		add(Write, rHeapPointer, memAddr(MEMADDR_HEAP_POINTER));// maybe TODO:
-																// test and set?
+		add(Write, rHeapPointer, memAddr(MEMADDR_GLOBAL_HP));// maybe TODO: test and set?
 		freeReg(rArraySize);
 		freeReg(rHeapPointer);
 	}
@@ -953,7 +980,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		for (ParseTree parseTree : unordered) {
 			if(parseTree instanceof DeclContext 
 					|| parseTree instanceof PtrDeclContext ||
-					parseTree instanceof ArrayDeclContext){
+					parseTree instanceof ArrayDeclContext || parseTree instanceof ArrayDeclInitContext){
 				reordered.add(parseTree);
 			}
 		}
