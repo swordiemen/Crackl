@@ -60,17 +60,19 @@ import analysis.Scope;
 
 public class Generator extends CracklBaseVisitor<Op> {
 
-	public static final boolean DEBUG = false;
-	ArrayList<Line> program = new ArrayList<Line>();
-	Stack<Register> regStack = new Stack<Register>();
-	Stack<Register> freeRegisters = new Stack<Register>();
-	HashMap<String, Function> functionTable; //Function name -> Function
-	//private int mainFunctionLine = -1; //TODO: actually see if the main code can be moved to the top, without breaking jumps in e.g. while/if-else etc
-	Scope currentScope = null;
-	Result result = null;
+	public static final boolean DEBUG_OTHER = false;
+	public static final boolean DEBUG_REG = false;
+
+	public ArrayList<Line> program = new ArrayList<Line>();
+	
+	private Stack<Register> regStack = new Stack<Register>();
+	private Stack<Register> freeRegisters = new Stack<Register>();
+	private HashMap<String, Function> functionTable; //Function name -> Function
+	private Scope currentScope = null;
+	private Result result = null;
 	private HashMap<FuncCallContext, Integer> functionPlaceholders = new HashMap<FuncCallContext, Integer>(); //ctx -> line number of line where jump needs to happen
 
-	/**Strange edge-case where e.g. return address and parameters are already being pushed on the stack...
+	/**Edge-case where e.g. return address and parameters are already being pushed on the stack.
 	 * It indicates how many spaces to skip *additionally* **/
 	private int pushedDuringFunctionCallSetup = 0;
 
@@ -86,67 +88,41 @@ public class Generator extends CracklBaseVisitor<Op> {
 	public static final int GLOBAL_HEAP_END = 16 * 1000 * 1000 - 1;
 	public static final int GLOBAL_HEAP_SIZE = GLOBAL_HEAP_START - GLOBAL_HEAP_END;
 
-	public ArrayList<Line> getProgram()
-	{
-		return program;
-	}
-
-	public Generator(Result result, HashMap<String,Function> functionTable) {
+	public Generator(Result result, HashMap<String, Function> functionTable) {
 		this.result = result;
 		this.functionTable = functionTable;
 		freeRegisters.addAll(Op.gpRegisters);
 	}
-	
-	/**
-	@Override
-	public Op visitParams(ParamsContext ctx)
-	{
-		//	params: ''|(type ID COMMA)* type ID;
-		
-		//NOTE: this is part of building the function table, maybe this should go to a separate class?
-		int size = ctx.type().size();
-		for(int i = 0; i<size; i++)
-		{
-			TypeContext typeCtx = ctx.type(i);
-			TerminalNode idCtx = ctx.ID(i);
-		}
-		return null;
-	}
-	**/
-	
+
 	@Override
 	public Op visitFuncDecl(FuncDeclContext ctx)
 	{
-		// func	#funcStat
-		//func: FUNC retType ID LPAR params RPAR LCURL stat* ret RCURL;
+		// func #funcStat
+		// func: FUNC retType ID LPAR params RPAR LCURL stat* ret RCURL;
 		Scope newScope = result.getScope(ctx);
 		doAssert(newScope.getScope() == this.currentScope);
 		this.currentScope = newScope;
-		System.out.println("newScope: \n"+currentScope);
-		
-		
-		//add instructions to push parameters on the stack BULLSHIT
-		//visit(ctx.params());
-		
+		debug("newScope: \n" + currentScope);
+
 		functionTable.get(ctx.ID().getText()).startLine = program.size();
-		
+
 		List<StatContext> stats = ctx.stat();
-		//add instructions to reserve space for local variables on the stack
+		// add instructions to reserve space for local variables on the stack
 		int toPop = addReserveForLocalVariables(stats);
 
-		//insert function's instructions into program (duh)
+		// insert function's instructions into program (duh)
 		for (StatContext stat : stats) {
 			visit(stat);
 		}
-		
-		//add instructions to remove parameters from stack, and restore PC with return address
-		//RETURN: add instructions to remove parameters from stack, restore PC with return address, and put returnvalue on the stack
+
+		// add instructions to remove parameters from stack, and restore PC with return address
+		// RETURN: add instructions to remove parameters from stack, restore PC with return address, and put returnvalue on the stack
 		visit(ctx.ret());
 		Reg rReturnValue = popReg();
 
-		//add instructions to "pop" the local variables from the stack
+		// add instructions to "pop" the local variables from the stack
 		addDecrSp(toPop);
-	
+
 		// Pop parameters and get the return address
 		Reg rReturnAddress = getFreeReg();
 		addDecrSp(functionTable.get(ctx.ID().getText()).params.size());
@@ -158,19 +134,17 @@ public class Generator extends CracklBaseVisitor<Op> {
 		freeReg(rReturnValue);
 
 		this.currentScope = this.currentScope.getScope();
-		
+
 		return null;
 	}
-	
+
 	@Override
 	public Op visitRet(RetContext ctx)
 	{
 		// push return value on stack
-		System.out.println("Return expr: "+ctx.expr().getText());
 		visit(ctx.expr());
 		Reg rReturnValue = popReg();
 		pushReg(rReturnValue);
-		System.out.println("RET : "+rReturnValue);
 		return null;
 	}
 	
@@ -182,7 +156,6 @@ public class Generator extends CracklBaseVisitor<Op> {
 		Register[] inUse = usedRegisters.toArray(new Register[usedRegisters.size()]);
 
 		for(int i = 0; i<inUse.length; i++){
-			System.out.println("NON-FREE REGISTER PUSHED : "+inUse[i]);
 			add(Push, reg(inUse[i]));
 		}
 		return inUse;
@@ -190,7 +163,6 @@ public class Generator extends CracklBaseVisitor<Op> {
 	
 	public void addPopPreservedRegisters(Register[] preservedRegisters){
 		for(int i = preservedRegisters.length-1; i>=0; i--){
-			System.out.println("NON-FREE REGISTER PoPPERd : "+preservedRegisters[i]);
 			add(Pop, reg(preservedRegisters[i]));
 		}
 		
@@ -226,11 +198,6 @@ public class Generator extends CracklBaseVisitor<Op> {
 		functionPlaceholders.put(ctx, addPlaceholder("Jump to absolute function start address of : "+ctx.ID().getText()));
 		//	will be similar to : add(Jump, abs(functionTable.get(ctx.ID().getText()).startLine));
 
-		/**
-		int returnAddressOffset = program.size()-startSize + 2; //+2 for Compute and Push instructions
-		changeAt(constLine, Const, constOp(returnAddressOffset), rReturnAddress); //lazy reuse...
-		freeReg(rReturnAddress);
-		**/
 		changeAt(returnAddressLine, Const, constOp(program.size()), rReturnAddress); //return just after the Jump instruction
 		freeReg(rReturnAddress);
 		
@@ -256,14 +223,12 @@ public class Generator extends CracklBaseVisitor<Op> {
 	@Override
 	public Op visitMainfunc(MainfuncContext ctx)
 	{
-		//	mainfunc: MAIN LCURL stat* RCURL;
-		//this.mainFunctionLine = program.size(); //TODO: actually see if the main code can be moved to the top, without breaking jumps in e.g. while/if-else etc
-		
-		System.out.println(" MAIN BLOCK ! ");
+		// mainfunc: MAIN LCURL stat* RCURL;
+		debug(" MAIN BLOCK ! ");
 		Scope newScope = result.getScope(ctx);
 		doAssert(newScope.getScope() == this.currentScope);
 		this.currentScope = newScope;
-		System.out.println("newScope: \n"+currentScope);
+		debug("newScope: \n" + currentScope);
 
 		List<StatContext> stats = ctx.stat();
 
@@ -279,12 +244,11 @@ public class Generator extends CracklBaseVisitor<Op> {
 
 		freeReg(rPop);
 		currentScope = currentScope.getScope();
-		doAssert(currentScope.getScope()==null);
+		doAssert(currentScope.getScope() == null);
 
-		add(EndProg); //make sure no 'random' code is executed
+		add(EndProg); // make sure no 'random' code is executed
 		return null;
 	}
-	
 	
 	/**
 	 * Adds instructions to effectively pop n variables from the stack
@@ -323,8 +287,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		}
 		return toPop;
 	}
-	
-	
+
 	@Override
 	public Op visitPtrDecl(PtrDeclContext ctx)
 	{
@@ -353,21 +316,20 @@ public class Generator extends CracklBaseVisitor<Op> {
 		rLoc = getFreeReg();
 		MemoryLocation assignLoc = currentScope.getMemLoc(variable);
 		if (assignLoc.isGlobal()) {
-				int totalOffset = assignLoc.getTotalOffset();
-				System.out.println("visitPtr  decl (global) VALUE="+totalOffset);
-				add(Const, constOp(totalOffset),rLoc);
+			int totalOffset = assignLoc.getTotalOffset();
+			add(Const, constOp(totalOffset), rLoc);
 		}
 		else {
-			if(assignLoc.isOnStack()){
+			if (assignLoc.isOnStack()) {
 				int totalOffset = currentScope.getStackOffset(variable);
 				totalOffset += pushedDuringFunctionCallSetup;
-				add(Const, constOp(totalOffset),rLoc);
+				add(Const, constOp(totalOffset), rLoc);
 				add(Compute, operator(Operator.Add), reg(SP), rLoc, rLoc);
-				//throw new IllegalArgumentException("No pointers to stack variables allowed!");
-			}else{
+				// throw new IllegalArgumentException("No pointers to stack variables allowed!");
+			}
+			else {
 				int totalOffset = assignLoc.getTotalOffset();
-				System.out.println("visitPtr decl VALUE="+totalOffset);
-				add(Const, constOp(totalOffset),rLoc);
+				add(Const, constOp(totalOffset), rLoc);
 			}
 		}
 		return rLoc;
@@ -414,62 +376,62 @@ public class Generator extends CracklBaseVisitor<Op> {
 
 	public Reg addDeref(String id)
 	{
-		//doAssert(memoryAddress >= 0 && memoryAddress < GLOBAL_HEAP_END);
+		// doAssert(memoryAddress >= 0 && memoryAddress < GLOBAL_HEAP_END);
 		Reg rLoc = getFreeReg();
 		addLoadInto(id, rLoc);
-		
+
 		Reg rCmp = getFreeReg();
 		Reg rConst = getFreeReg();
 		add(Const, constOp(LOCAL_HEAP_SIZE), rConst);
-		add(Compute, operator(Operator.GtE),rLoc, rConst, rCmp);
+		add(Compute, operator(Operator.GtE), rLoc, rConst, rCmp);
 		int branchLine = addPlaceholder("deref branchLine");
-		
-		//from local memory
+
+		// from local memory
 		add(Load, deref(rLoc), rLoc);
 		int jumpToEndLine = addPlaceholder("deref jump to end");
 		int elseLine = program.size();
 		changeAt(branchLine, Branch, rCmp, abs(elseLine));
-		
-		//from global memory
+
+		// from global memory
 		add(Read, deref(rLoc));
 		add(Receive, rLoc);
-		
+
 		int nextEnterLine = program.size();
 
 		changeAt(jumpToEndLine, Jump, abs(nextEnterLine));
 
 		freeReg(rCmp);
 		freeReg(rConst);
-		//(no need to push, this is handled in visitPtrDerefExpr)
+		// (no need to push, this is handled in visitPtrDerefExpr)
 
 		return rLoc;
 	}
-	
+
 	@Override
 	public Op visitAssignDeref(AssignDerefContext ctx)
 	{
 		visit(ctx.expr());
 		Reg rExpr = popReg();
-		 String target = ctx.derefTarget().ID().getText();
+		String target = ctx.derefTarget().ID().getText();
 
 		Reg rLoc = getFreeReg();
 		addLoadInto(target, rLoc);
-		
+
 		Reg rCmp = getFreeReg();
 		Reg rConst = getFreeReg();
 		add(Const, constOp(LOCAL_HEAP_SIZE), rConst);
-		add(Compute, operator(Operator.GtE),rLoc, rConst, rCmp);
+		add(Compute, operator(Operator.GtE), rLoc, rConst, rCmp);
 		int branchLine = addPlaceholder("deref branchLine");
-		
-		//from local memory
+
+		// from local memory
 		add(Store, rExpr, deref(rLoc));
 		int jumpToEndLine = addPlaceholder("deref jump to end");
 		int elseLine = program.size();
 		changeAt(branchLine, Branch, rCmp, abs(elseLine));
-		
-		//from global memory
+
+		// from global memory
 		add(Write, rExpr, deref(rLoc));
-		
+
 		int nextEnterLine = program.size();
 
 		changeAt(jumpToEndLine, Jump, abs(nextEnterLine));
@@ -478,7 +440,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		freeReg(rConst);
 		freeReg(rExpr);
 		freeReg(rLoc);
-		//(no need to push, this is handled in visitPtrDerefExpr)
+		// (no need to push, this is handled in visitPtrDerefExpr)
 
 		return null;
 	}
@@ -487,22 +449,23 @@ public class Generator extends CracklBaseVisitor<Op> {
 	{
 		MemoryLocation loc = currentScope.getMemLoc(variable);
 		if (loc.isLocal()) {
-			if(loc.isOnStack()){
-				//relative
+			if (loc.isOnStack()) {
+				// relative
 				Reg rLoc = getFreeReg();
 				int stackOffset = currentScope.getStackOffset(variable);
-				stackOffset+=pushedDuringFunctionCallSetup; //strange edge-case where e.g. return address and parameters are already being pushed on the stack...
+				stackOffset+=pushedDuringFunctionCallSetup; //Edge-case where e.g. return address and parameters are already being pushed on the stack...
 				add(Const, constOp(stackOffset), rLoc);
 				add(Compute, operator(Operator.Add), reg(SP), rLoc, rLoc);
 				add(Store, reg, deref(rLoc));
 				freeReg(rLoc);
-			}else{
-				//absolute
-				add(Store, reg, addr(loc.getScopeOffset(), loc.getVarOffset())); 
+			}
+			else {
+				// absolute
+				add(Store, reg, addr(loc.getScopeOffset(), loc.getVarOffset()));
 			}
 		}
 		else if (loc.isGlobal()) {
-			add(Write, reg, addr(loc.getScopeOffset(), loc.getVarOffset())); // store // start // address // on // stack // at // variable
+			add(Write, reg, addr(loc.getScopeOffset(), loc.getVarOffset())); // store start address on stack at variable
 		}
 		else {
 			throw new IllegalArgumentException("Neither global nor local!");
@@ -510,21 +473,17 @@ public class Generator extends CracklBaseVisitor<Op> {
 	}
 
 	/**
-	 * 
-	 * @param variable
-	 * @param reg
 	 * @return memory address, depending on whether it's on stack etc...
 	 */
 	public int addLoadInto(String variable, Reg reg)
 	{
 		MemoryLocation loc = currentScope.getMemLoc(variable);
-		System.out.println("addLoadInto : "+variable);
 		if (loc.isLocal()) {
 			if(loc.isOnStack()){
 				//relative
 				Reg rLoc = getFreeReg();
 				int stackOffset = currentScope.getStackOffset(variable);
-				stackOffset+=pushedDuringFunctionCallSetup; //strange edge-case where e.g. return address and parameters are already being pushed on the stack...
+				stackOffset+=pushedDuringFunctionCallSetup; //Edge-case where e.g. return address and parameters are already being pushed on the stack...
 				add(Const, constOp(stackOffset), rLoc);
 				add(Compute, operator(Operator.Add), reg(SP), rLoc, rLoc);
 				add(Load, deref(rLoc), reg);
@@ -564,8 +523,8 @@ public class Generator extends CracklBaseVisitor<Op> {
 		Reg rArrayPointer = addGetHeappointer();
 		addSave(ctx.ID().getText(), rArrayPointer);
 
-		int i = 0;
 		/** TODO: arrays broken by grammar change
+		int i = 0;
 		for (i = 0; i < ctx.expr().size(); i++) {
 			visit(ctx.expr(i));
 			Reg rExpr = popReg();
@@ -839,15 +798,9 @@ public class Generator extends CracklBaseVisitor<Op> {
 		return reg;
 	}
 
-	private void freeReg(Register r)
-	{
-		doAssert(!regStack.contains(r));
-		freeRegisters.push(r);
-	}
-
 	private void freeReg(Reg r)
 	{
-		System.out.println("Free : " + r.name);
+		debugReg("Free : " + r.name);
 		doAssert(!regStack.contains(r.reg));
 		if (Op.gpRegisters.contains(r.reg)) {
 			freeRegisters.push(r.reg);
@@ -861,16 +814,16 @@ public class Generator extends CracklBaseVisitor<Op> {
 
 	private Reg getFreeReg()
 	{
-		System.out.println("currently free : " + freeRegisters);
+		debugReg("currently free : " + freeRegisters);
 		Register reg = freeRegisters.pop();
-		System.out.println("Get: " + reg);
+		debugReg("Get: " + reg);
 		return reg(reg);
 	}
 
 	@Override
 	public Op visit(ParseTree tree)
 	{
-		System.out.println("----- visiting : " + tree.getText());
+		debug("----- visiting : " + tree.getText());
 		return super.visit(tree);
 	}
 
@@ -916,8 +869,6 @@ public class Generator extends CracklBaseVisitor<Op> {
 		visit(ctx.expr());
 		Reg r1 = popReg();
 		addSave(ctx.target().ID().getText(), r1);
-		// note: can be either some local scope, or the heap/global scope
-		// (allocated and will not be cleaned up)
 		freeReg(r1);
 		return null;
 	}
@@ -943,11 +894,10 @@ public class Generator extends CracklBaseVisitor<Op> {
 	@Override
 	public Op visitBlockStat(BlockStatContext ctx)
 	{
-		System.out.println(" BLOCK ! ");
 		Scope newScope = result.getScope(ctx);
 		doAssert(newScope.getScope() == this.currentScope);
 		this.currentScope = newScope;
-		System.out.println("newScope: \n"+currentScope);
+		debug("newScope: \n"+currentScope);
 
 		List<StatContext> stats = ctx.stat();
 
@@ -977,10 +927,20 @@ public class Generator extends CracklBaseVisitor<Op> {
 		}
 	}
 
+	/**
+	 * Prints a debug message to the output
+	 */
 	private void debug(String s)
 	{
-		if (DEBUG) {
-			program.add(new DebugLine(s));
+		if (DEBUG_OTHER) {
+			System.out.println(s);
+		}
+	}
+	
+	private void debugReg(String s)
+	{
+		if (DEBUG_REG) {
+			System.out.println(s);
 		}
 	}
 
@@ -1015,20 +975,12 @@ public class Generator extends CracklBaseVisitor<Op> {
 			visit(child);
 		}
 
-		//changeAt(jumpLine, Jump, abs(mainFunctionLine));
-
-		for (int i = 0; i < 5; i++) {
-			add(Nop);
-		}
-		
 		//replace all function jump placeholders with actual start addresses
-		for (Iterator it = functionPlaceholders.keySet().iterator(); it.hasNext();) {
-			FuncCallContext fcCtx = (FuncCallContext) it.next();
+		for (Iterator<FuncCallContext> it = functionPlaceholders.keySet().iterator(); it.hasNext();) {
+			FuncCallContext fcCtx = it.next();
 			String name = fcCtx.ID().getText();
 			Function function = functionTable.get(name);
 			changeAt(functionPlaceholders.get(fcCtx), Jump, abs(function.startLine));
-//		add(Jump, abs(functionTable.get(ctx.ID().getText()).startLine));
-			
 		}
 		
 		
@@ -1049,19 +1001,6 @@ public class Generator extends CracklBaseVisitor<Op> {
 		freeReg(r2);
 		pushReg(r1);
 		return null;
-	}
-
-	private void popInto(Reg... regs)
-	{
-		for (Reg reg : regs) {
-			add(Pop, reg);
-		}
-	}
-
-	private void addAt(int lineNr, Op.Instruction op, Operand... args)
-	{
-		Line line = new Line(op, args);
-		program.add(lineNr, line);
 	}
 
 	private void add(Op.Instruction op, Operand... args)

@@ -1,4 +1,0 @@
-//the following values should be printed:
-nestedwhile.crk => 012101220123
-nestedif.crk => 1
-arrays.crk => 9249000

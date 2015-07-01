@@ -25,7 +25,9 @@ import grammar.CracklParser;
 import grammar.CracklParser.ProgramContext;
 
 public class Compiler {
-	public static final String PROGRAMS_PATH = "./machine";
+	public static final String PROGRAMS_PATH = "./programs/";
+	public static final String OUTPUT_PATH = "./machine/";
+	
 	private TypeChecker checker;
 
 	/**
@@ -56,7 +58,7 @@ public class Compiler {
 				e.printStackTrace();
 				//System.out.println(formatProgram(generator.getProgram()));
 			}
-			ArrayList<Line> program = generator.getProgram();
+			ArrayList<Line> program = generator.program;
 			System.out.println(program);
 			return program;
 		}else{
@@ -73,7 +75,7 @@ public class Compiler {
 	public ParseTree parse(String fileName){		
 		CharStream chars = null;
 		try {
-			chars = new ANTLRInputStream(new FileReader(fileName));
+			chars = new ANTLRInputStream(new FileReader(PROGRAMS_PATH+fileName));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -116,9 +118,9 @@ public class Compiler {
 	 * @throws IOException
 	 */
 	public void write(String fileName, ArrayList<Line> program) throws IOException{
-		if(!new File(PROGRAMS_PATH).mkdirs()){
+		if(!new File(OUTPUT_PATH).mkdirs()){
 		}
-		File file = new File(PROGRAMS_PATH+"/"+fileName);
+		File file = new File(OUTPUT_PATH+fileName);
 		BufferedWriter bw = null;
 		bw = new BufferedWriter(new FileWriter(file));
 
@@ -129,9 +131,14 @@ public class Compiler {
 	public static void main(String[] args){
 		Compiler compiler = new Compiler();
 		try {
-			//ArrayList<Line> prog = compiler.compile("fibonacci.crk");
-			ArrayList<Line> prog = compiler.compile("pointers2.crk");
-			compiler.write("ptest.hs", prog);
+			String program_name = "pointers2.crk";
+			ArrayList<Line> prog = compiler.compile(program_name);
+			if (false) {
+				compiler.write(program_name + ".hs", prog);
+			}
+			else {
+				compiler.write("crk_program.hs", prog);
+			}
 		} catch (IOException e) {
 			e.printStackTrace();
 		} catch (TypeCheckException e1) {

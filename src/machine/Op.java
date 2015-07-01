@@ -5,6 +5,8 @@ import java.util.EnumSet;
 
 public class Op {
 
+	public static final EnumSet<Register> gpRegisters = EnumSet.of(Register.RegA, Register.RegB, Register.RegC, Register.RegD, Register.RegE); 
+
 	public enum Instruction {
 
 		//LocalInsruction
@@ -41,7 +43,6 @@ public class Op {
 		RegE
 	}
 	
-	public static final EnumSet<Register> gpRegisters = EnumSet.of(Register.RegA, Register.RegB, Register.RegC, Register.RegD, Register.RegE); 
 
 	public enum Target {
 		Abs,
