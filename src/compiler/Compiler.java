@@ -1,12 +1,5 @@
 package compiler;
 
-import exception.TypeCheckException;
-import generation.Generator;
-import generation.Line;
-import grammar.CracklLexer;
-import grammar.CracklParser;
-import grammar.CracklParser.ProgramContext;
-
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
@@ -20,12 +13,16 @@ import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.Lexer;
 import org.antlr.v4.runtime.TokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
-import org.antlr.v4.runtime.tree.ParseTreeProperty;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 
 import analysis.Result;
-import analysis.Scope;
 import analysis.TypeChecker;
+import exception.TypeCheckException;
+import generation.Generator;
+import generation.Line;
+import grammar.CracklLexer;
+import grammar.CracklParser;
+import grammar.CracklParser.ProgramContext;
 
 public class Compiler {
 	public static final String PROGRAMS_PATH = "./machine";
@@ -63,6 +60,7 @@ public class Compiler {
 			System.out.println(program);
 			return program;
 		}else{
+			System.out.println(checker.getErrors());
 			throw new TypeCheckException("Build failed (TypeChecker)");
 		}
 	}
@@ -131,7 +129,8 @@ public class Compiler {
 	public static void main(String[] args){
 		Compiler compiler = new Compiler();
 		try {
-			ArrayList<Line> prog = compiler.compile("functions.crk");
+			//ArrayList<Line> prog = compiler.compile("fibonacci.crk");
+			ArrayList<Line> prog = compiler.compile("pointers.crk");
 			compiler.write("ptest.hs", prog);
 		} catch (IOException e) {
 			e.printStackTrace();

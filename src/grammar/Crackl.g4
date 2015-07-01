@@ -5,8 +5,8 @@ program: PROGRAM_START stat;
 stat: GLOBAL? type ID  (ASSIGN expr)? SEMI  		#decl
 	| GLOBAL? type ARRAY ID ASSIGN expr SEMI		#arrayDeclInit
 	| GLOBAL? type LSQ expr RSQ ID SEMI				#arrayDecl 
-	| GLOBAL? PTRTYPE type ID (PTRASSIGN ID)? SEMI	#ptrDecl
-	| GLOBAL? PTRTYPE type ID ASSIGN ID SEMI		#ptrDeclNormal
+	| GLOBAL? type ID (PTRASSIGN ID)? SEMI			#ptrDecl
+	| GLOBAL? type ID ASSIGN ID SEMI				#ptrDeclNormal
 	| ID PTRASSIGN ID SEMI							#ptrAssign
     | target ASSIGN expr SEMI             			#assignStat
     | target LSQ expr RSQ ASSIGN expr SEMI     		#arrayAssignStat

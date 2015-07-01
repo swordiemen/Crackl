@@ -1,0 +1,16 @@
+Program {
+
+	func int rec(int n){
+		print(n);
+		if(n>0){
+			rec(n-1);
+		}
+		return 4;
+	}
+
+	main {
+		int a = rec(5);
+		print(a);
+	}
+	
+}

@@ -1,18 +1,14 @@
 Program {
-	global int a = 0;
-	global int b = 1;
-	int c;
-	global int d;
-	{
-		int f = a;
-		int g = b;
-	}
-	global int i;
 	
-	func int hey(int a, boolean f){
-		int b = a;
-		return a;
+	int heapValue = 8;
+	
+	func int refFunc(#int arg_ptr){
+		return 0;
 	}
 	
-	int boo = hey(false);
+	main{
+		#int ptr_a => heapValue;
+		print(heapValue);
+		print(@ptr_a);
+	}
 }

@@ -22,11 +22,7 @@ Program {
 
 	
 	main {
-		//Expected result: 6, 8 and 9//
-		mult(2,3);
-		mult(2,4);
-		mult(3,3);
-		//multiples(3,3); broken :(//
+		multiples(3,3);
 	}
 	
 }

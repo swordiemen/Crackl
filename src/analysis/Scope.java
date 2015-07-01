@@ -217,9 +217,9 @@ public class Scope {
 	public String toString()
 	{
 		String info = String.format("Scope:\n\tStackSize: %d\n\tglobSize: %d\n\tisFunction %b\n", stackSize, globSize, isFunction);
-		info += "\tinitVars: "+initVars;
-		info += "\ttypes: "+types;
 		info += "\toffsets: "+offsets;
+		//info += "\tinitVars: "+initVars;
+		info += "\ttypes: "+types;
 		return info;
 	}
 

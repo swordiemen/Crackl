@@ -158,6 +158,7 @@ public class TypeChecker extends CracklBaseListener {
 	@Override
 	public void exitAssignStat(AssignStatContext ctx)
 	{
+		System.out.println(ctx.getText());
 		Scope curScope = scopes.get(scopes.size()-1);
 		Type lhsType = getType(ctx.target());
 		checkType(ctx.expr(), lhsType);
@@ -346,6 +347,12 @@ public class TypeChecker extends CracklBaseListener {
 		
 		currentFunction = new Function(ctx.ID().getText());
 		functions.put(ctx.ID().getText(), currentFunction);
+		
+		//Moved from exitFuncDecl
+		Type retType = Type.get(ctx.retType().getText());
+		boolean isVoid = retType == Type.VOID;
+		String functionName = ctx.ID().getText();
+		funcTypes.put(functionName, retType);
 	}
 
 	@Override
@@ -473,6 +480,9 @@ public class TypeChecker extends CracklBaseListener {
 			addError(ctx, "Function " + funcName + " does not exist.");
 		}else{
 			types.put(ctx, funcType);
+			//TODO: find good way to support calling a function Before exiting it's declaration (e.g. recursion or even reordered functions)
+			return;
+			/**
 			int funcParamsAmount = funcParams.get(funcName).size();
 			int actualAmount = ctx.expr().size();
 			if(funcParamsAmount != actualAmount){
@@ -487,6 +497,7 @@ public class TypeChecker extends CracklBaseListener {
 					}
 				}
 			}
+			**/
 		}
 	}
 
@@ -564,8 +575,7 @@ public class TypeChecker extends CracklBaseListener {
 
 	@Override
 	public void exitFuncDeclStat(FuncDeclStatContext ctx) {
-		//	types.put(ctx, getType(ctx.funcDecl()));
-
+		//types.put(ctx, getType(ctx.funcDecl()));
 	}
 
 	@Override
