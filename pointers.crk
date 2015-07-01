@@ -1,14 +1,34 @@
 Program {
 	
-	int heapValue = 8;
+	int heapValue = 4;
+	int heapValue2 = 5;
+	int heapValue3 = 6;
+	int heapValue4 = 7;
 	
-	func int refFunc(#int arg_ptr){
+	//Call by reference =D //
+	func int refFuncAdd(int toAdd, #int arg_ptr){
+		int oldvalue = @arg_ptr;
+		@arg_ptr = toAdd + oldvalue;
 		return 0;
 	}
 	
+	func int printHeapValues(){
+        print(heapValue);
+        print(heapValue2);
+        print(heapValue3);
+        print(heapValue4);
+        return 0;
+	}
+	
 	main{
-		#int ptr_a => heapValue;
-		print(heapValue);
-		print(@ptr_a);
+		int mutable = 5;
+		#int ptr_mutable => mutable;
+		#int ptr_heapValue => heapValue;
+		
+		refFuncAdd(3, ptr_mutable);
+		print(@ptr_mutable); // 8 //
+		refFuncAdd(3, ptr_heapValue);
+		print(@ptr_heapValue); // 7 //
+
 	}
 }

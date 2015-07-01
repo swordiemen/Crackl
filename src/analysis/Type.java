@@ -1,5 +1,7 @@
 package analysis;
 
+import grammar.CracklLexer;
+
 import java.util.Map;
 
 public class Type {
@@ -95,6 +97,8 @@ public class Type {
 	 */
 	public static Type get(String type)
 	{
+		String PTRTYPE = "#";
+		if(type.startsWith(PTRTYPE));
 		switch (type)
 			{
 			case "boolean":

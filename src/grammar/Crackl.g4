@@ -9,6 +9,7 @@ stat: GLOBAL? type ID  (ASSIGN expr)? SEMI  		#decl
 	| GLOBAL? type ID ASSIGN ID SEMI				#ptrDeclNormal
 	| ID PTRASSIGN ID SEMI							#ptrAssign
     | target ASSIGN expr SEMI             			#assignStat
+    | derefTarget ASSIGN expr SEMI             		#assignDeref
     | target LSQ expr RSQ ASSIGN expr SEMI     		#arrayAssignStat
     | IF LPAR expr RPAR stat (ELSE stat)? 			#ifStat 
     | WHILE LPAR expr RPAR stat           			#whileStat 
@@ -29,11 +30,13 @@ mainfunc: MAIN LCURL stat* RCURL;
 global: GLOBAL LCURL  RCURL;
 
 ret: 'return ' expr SEMI;
-params: ''|(type ID COMMA)* type ID;
+params: ((type ID COMMA)* type ID)?;
     
 target: ID;
+derefTarget: DEREF ID;
 
-type: INTTYPE | BOOLTYPE;
+type: PTRTYPE? primitive;
+primitive: INTTYPE | BOOLTYPE;
 retType: type | VOID;
 
 funcCall: ID LPAR (expr? | (expr (COMMA expr)*)) RPAR;
@@ -56,7 +59,6 @@ expr: funcCall						#funcExpr
 
 INTTYPE: 'int';
 BOOLTYPE: 'boolean';
-
 
 LOCK: 'lock';
 UNLOCK: 'unlock';

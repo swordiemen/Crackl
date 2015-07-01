@@ -9,6 +9,7 @@ import grammar.CracklParser.ArrayDeclContext;
 import grammar.CracklParser.ArrayDeclInitContext;
 import grammar.CracklParser.ArrayExprContext;
 import grammar.CracklParser.ArrayIndexExprContext;
+import grammar.CracklParser.AssignDerefContext;
 import grammar.CracklParser.AssignStatContext;
 import grammar.CracklParser.BlockStatContext;
 import grammar.CracklParser.CompExprContext;
@@ -22,10 +23,12 @@ import grammar.CracklParser.FuncExprContext;
 import grammar.CracklParser.IdExprContext;
 import grammar.CracklParser.IfStatContext;
 import grammar.CracklParser.LockStatContext;
+import grammar.CracklParser.MainfuncContext;
 import grammar.CracklParser.NotExprContext;
 import grammar.CracklParser.OrExprContext;
 import grammar.CracklParser.ParExprContext;
 import grammar.CracklParser.ParamsContext;
+import grammar.CracklParser.PrimitiveContext;
 import grammar.CracklParser.PrintExprStatContext;
 import grammar.CracklParser.ProgramContext;
 import grammar.CracklParser.PtrAssignContext;
@@ -79,14 +82,13 @@ public class TypeChecker extends CracklBaseListener {
 		List<TypeContext> types = ctx.type();
 		for (int i = 0; i < types.size(); i++) {
 			TerminalNode idCtx = ctx.ID(i);
-			TypeContext typeCtx = ctx.type(i);
+			Type type = getTypeFromContext(ctx.type(i));
 			String var = idCtx.getText();
-			Type lhsType = Type.get(typeCtx.getText());
 
-			this.types.put(idCtx, lhsType);
-			newScope.put(var, lhsType, false);
+			this.types.put(idCtx, type);
+			newScope.put(var, type, false);
 			newScope.addInitVar(var);
-			result.addType(ctx, lhsType);
+			result.addType(ctx, type);
 			result.addOffset(ctx, newScope.getOffset(var));
 			System.out.println(newScope.getBaseAddress());
 			result.addNode(ctx);
@@ -119,10 +121,6 @@ public class TypeChecker extends CracklBaseListener {
 		}
 
 		Scope scope = new Scope(lastScope);
-		MemoryLocation memLoc = scope.getMemLoc("x");
-		if(memLoc!=null){
-			System.out.println(memLoc.getScopeOffset());
-		}
 		scopes.add(scope);
 	}
 
@@ -164,6 +162,17 @@ public class TypeChecker extends CracklBaseListener {
 		checkType(ctx.expr(), lhsType);
 		curScope.addInitVar(ctx.getText());
 	}
+	
+	@Override
+	public void exitAssignDeref(AssignDerefContext ctx)
+	{
+		// e.g. @ptr_a = 5;
+		Type targetType = getTypeByString(ctx.derefTarget().ID().getText());
+		targetType = targetType.getTypeObj();
+		Type exprType = getType(ctx.expr());
+		checkType(targetType, exprType, ctx);
+		super.exitAssignDeref(ctx);
+	}
 
 	public boolean isInitialized(String var){
 		for(int i = scopes.size() - 1; i >= 0; i--){
@@ -199,7 +208,7 @@ public class TypeChecker extends CracklBaseListener {
 		if(curScope.getType(var) != null){
 			addError(ctx, String.format("Variable '%s' already declared in this scope!", var));
 		}else{
-			Type lhsType = Type.get(ctx.type().getText());
+			Type lhsType = getTypeFromContext(ctx.type());
 			if (ctx.expr() != null) {
 				checkType(ctx.expr(), lhsType);
 				curScope.addInitVar(var);
@@ -210,6 +219,31 @@ public class TypeChecker extends CracklBaseListener {
 			result.addOffset(ctx, curScope.getOffset(var));
 			result.addNode(ctx);
 		}
+	}
+	
+	@Override
+	public void enterMainfunc(MainfuncContext ctx)
+	{
+		Scope lastScope; 
+		if(scopes.size() == 0){
+			lastScope = null;
+		}else{
+			lastScope = scopes.get(scopes.size() - 1);
+		}
+
+		Scope scope = new Scope(lastScope);
+		scopes.add(scope);
+	}
+	
+	@Override
+	public void exitMainfunc(MainfuncContext ctx)
+	{
+		Scope removeScope = scopes.get(scopes.size() - 1);
+		System.out.println("Main func Scope: ");
+		System.out.println(removeScope);
+		scopes.remove(scopes.size() - 1);
+		result.addScope(ctx, removeScope);
+		result.addNode(ctx);
 	}
 
 	@Override
@@ -286,16 +320,19 @@ public class TypeChecker extends CracklBaseListener {
 		if(curScope.exists(var)){
 			addError(ctx, "Variable '" + var + "' is already declared!");
 		}
-		Type lhsType = Type.get(ctx.type().getText());
-		Pointer pointerType = new Pointer(lhsType);
+		Type lhsType = getTypeFromContext(ctx.type());
 		if(ctx.ID().size() > 1){
 			String otherVar = ctx.ID(1).getText();
 			isInitialized(otherVar);
-			checkType(lhsType, getTypeByString(otherVar), ctx);
+			if(lhsType instanceof Pointer){
+				checkType(((Pointer)lhsType).getTypeObj(), getTypeByString(otherVar), ctx);
+			}else{
+				addError("Expected a pointer type in the lefthand side, got "+lhsType);
+			}
 		}
-		types.put(ctx, pointerType);
-		curScope.put(var, pointerType, global);
-		result.addType(ctx, pointerType);
+		types.put(ctx, lhsType);
+		curScope.put(var, lhsType, global);
+		result.addType(ctx, lhsType);
 		result.addOffset(ctx, curScope.getOffset(var));
 		result.addNode(ctx);
 		curScope.addInitVar(var);
@@ -313,9 +350,8 @@ public class TypeChecker extends CracklBaseListener {
 		if(curScope.exists(var)){
 			addError(ctx, "Variable '" + var + "' is already declared!");
 		}
-		Type lhsType = Type.get(ctx.type().getText());
-		Pointer pointerType = new Pointer(lhsType);
-
+		
+		Pointer pointerType = (Pointer)getTypeFromContext(ctx.type());
 		checkType(pointerType, getTypeByString(ctx.ID(1).getText()), ctx);
 
 		types.put(ctx, pointerType);
@@ -341,8 +377,6 @@ public class TypeChecker extends CracklBaseListener {
 		assert(lastScope.getScope() == null); //should be the outer scope! or something
 
 		Scope newScope = new Scope(lastScope, true);
-		System.out.println(newScope.getBaseAddress());
-		System.out.println(newScope.getGlobalBaseAddress());
 		scopes.add(newScope);
 		
 		currentFunction = new Function(ctx.ID().getText());
@@ -394,7 +428,6 @@ public class TypeChecker extends CracklBaseListener {
 		for(i = 1; i < ctx.expr().size(); i++){
 			checkType(type, types.get(ctx.expr(i)), ctx);
 		}
-		System.out.println(i + " ASD ASD AD ASD ASD ASD ASD ASD ");
 		Array arrayType = new Array(type);
 		arrayType.setLength(i);
 		arrayType.setLength(i * type.getSize());
@@ -526,10 +559,10 @@ public class TypeChecker extends CracklBaseListener {
 	@Override
 	public void exitPtrDerefExpr(PtrDerefExprContext ctx) {
 		Type type = getTypeByString(ctx.ID().getText());
-		if(!(type instanceof Pointer)){
-			addError(ctx, ctx.ID().getText()+" is not a pointer.");
-		}else{
+		if(type instanceof Pointer){
 			types.put(ctx, ((Pointer) type).getTypeObj());
+		}else{
+			addError(ctx, ctx.ID().getText()+" is not a pointer.");
 		}
 	}
 
@@ -561,8 +594,8 @@ public class TypeChecker extends CracklBaseListener {
 
 	@Override
 	public void exitParams(ParamsContext ctx) {
-		for(RuleContext tctx : ctx.type()){
-			Type type = Type.get(tctx.getText());
+		for(TypeContext tctx : ctx.type()){
+			Type type = getTypeFromContext(tctx);
 			if(paramTypes.get(ctx) != null){
 				paramTypes.get(ctx).add(type);
 			}else{
@@ -571,6 +604,16 @@ public class TypeChecker extends CracklBaseListener {
 				paramTypes.put(ctx, list);
 			}
 		}
+	}
+	
+	//Get type, pointer aware
+	private Type getTypeFromContext(TypeContext ctx ){
+		PrimitiveContext primCtx = ctx.primitive();
+		Type type = Type.get(primCtx.getText());
+		if (ctx.PTRTYPE() != null) {
+			type = new Pointer(type);
+		}
+		return type;
 	}
 
 	@Override
@@ -638,7 +681,7 @@ public class TypeChecker extends CracklBaseListener {
 					addError(ctx, "Exptected array of length " + ((Array) expected).getLength() + ", got an array with length " + ((Array) type).getLength() + ".");
 				}
 			}
-			addError(ctx, "Expected type " + expected + ", got " + type);
+			addError(ctx, "(1)Expected type " + expected + ", got " + type);
 
 			res = false;
 		}
@@ -657,7 +700,7 @@ public class TypeChecker extends CracklBaseListener {
 		boolean res = true;
 		if(!actual.equals(expected)){
 			res = false;
-			addError(ctx, "Expected type " + expected + ", got " + actual + ".");
+			addError(ctx, "(2) Expected type " + expected + ", got " + actual + ".");
 		}
 		return res;
 	}
@@ -674,7 +717,7 @@ public class TypeChecker extends CracklBaseListener {
 		boolean res = true;
 		Type pointerType = p.getTypeObj();
 		if(!pointerType.equals(actual)){
-			addError(ctx, "Expected type " + pointerType + ", got " + actual);
+			addError(ctx, "(ptr) Expected type " + pointerType + ", got " + actual);
 			res = false;
 		}
 		return res;

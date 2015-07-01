@@ -10,6 +10,7 @@ import grammar.CracklParser.ArrayAssignStatContext;
 import grammar.CracklParser.ArrayDeclContext;
 import grammar.CracklParser.ArrayDeclInitContext;
 import grammar.CracklParser.ArrayIndexExprContext;
+import grammar.CracklParser.AssignDerefContext;
 import grammar.CracklParser.AssignStatContext;
 import grammar.CracklParser.BlockStatContext;
 import grammar.CracklParser.CompExprContext;
@@ -52,6 +53,7 @@ import machine.Operand.MemAddr;
 import machine.Operand.Reg;
 
 import org.antlr.v4.runtime.tree.ParseTree;
+import org.antlr.v4.runtime.tree.TerminalNode;
 
 import analysis.MemoryLocation;
 import analysis.Result;
@@ -78,7 +80,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 	public static final int STACK_END = STACK_START + STACK_SIZE - 1;
 
 	public static final int LOCAL_HEAP_SIZE = 1024;
-	public static final int LOCAL_HEAP_START = STACK_END + 1;
+	public static final int LOCAL_HEAP_START = 0;
 	public static final int LOCAL_HEAP_END = STACK_END + LOCAL_HEAP_SIZE - 1;
 
 	public static final int GLOBAL_HEAP_START = LOCAL_HEAP_END + 1;
@@ -257,10 +259,29 @@ public class Generator extends CracklBaseVisitor<Op> {
 	{
 		//	mainfunc: MAIN LCURL stat* RCURL;
 		//this.mainFunctionLine = program.size(); //TODO: actually see if the main code can be moved to the top, without breaking jumps in e.g. while/if-else etc
+		
+		System.out.println(" MAIN BLOCK ! ");
+		Scope newScope = result.getScope(ctx);
+		doAssert(newScope.getScope() == this.currentScope);
+		this.currentScope = newScope;
+		System.out.println("newScope: \n"+currentScope);
+
 		List<StatContext> stats = ctx.stat();
-		for (StatContext stat : stats) {
-			visit(stat);
+
+		int toPop = addReserveForLocalVariables(stats);
+
+		for (StatContext child : stats) {
+			visit(child);
 		}
+
+		Reg rPop = getFreeReg();
+		add(Const, constOp(toPop), rPop);
+		add(Compute, operator(Op.Operator.Add), reg(Op.Register.SP), rPop, reg(Op.Register.SP));
+
+		freeReg(rPop);
+		currentScope = currentScope.getScope();
+		doAssert(currentScope.getScope()==null);
+
 		add(EndProg); //make sure no 'random' code is executed
 		return null;
 	}
@@ -312,7 +333,8 @@ public class Generator extends CracklBaseVisitor<Op> {
 		Reg rLoc = null;
 		if (ctx.PTRASSIGN() != null) {
 			rLoc = getFreeReg();
-			MemoryLocation assignLoc = currentScope.getMemLoc(ctx.ID(1).getText());
+			String rightId = ctx.ID(1).getText();
+			MemoryLocation assignLoc = currentScope.getMemLoc(rightId);
 			if (assignLoc.isGlobal()) {
 					int totalOffset = assignLoc.getTotalOffset();
 					System.out.println("visitPtr  decl (global) VALUE="+totalOffset);
@@ -320,7 +342,10 @@ public class Generator extends CracklBaseVisitor<Op> {
 			}
 			else {
 				if(assignLoc.isOnStack()){
-					throw new IllegalArgumentException("No pointers to stack variables allowed!");
+					int totalOffset = currentScope.getStackOffset(rightId);
+					add(Const, constOp(totalOffset),rLoc);
+					add(Compute, operator(Operator.Add), reg(SP), rLoc, rLoc);
+					//throw new IllegalArgumentException("No pointers to stack variables allowed!");
 				}else{
 					int totalOffset = assignLoc.getTotalOffset();
 					System.out.println("visitPtr decl VALUE="+totalOffset);
@@ -377,35 +402,73 @@ public class Generator extends CracklBaseVisitor<Op> {
 
 	public Reg addDeref(String id)
 	{
-		MemoryLocation idLoc = currentScope.getMemLoc(id);
-		int memoryAddress = idLoc.getTotalOffset();
-
-		doAssert(memoryAddress >= 0 && memoryAddress < GLOBAL_HEAP_END);
+		//doAssert(memoryAddress >= 0 && memoryAddress < GLOBAL_HEAP_END);
 		Reg rLoc = getFreeReg();
-		add(Const, constOp(memoryAddress), rLoc);
+		addLoadInto(id, rLoc);
+		
+		Reg rCmp = getFreeReg();
+		Reg rConst = getFreeReg();
+		add(Const, constOp(LOCAL_HEAP_SIZE), rConst);
+		add(Compute, operator(Operator.GtE),rLoc, rConst, rCmp);
+		int branchLine = addPlaceholder("deref branchLine");
+		
+		//from local memory
+		add(Load, deref(rLoc), rLoc);
+		int jumpToEndLine = addPlaceholder("deref jump to end");
+		int elseLine = program.size();
+		changeAt(branchLine, Branch, rCmp, abs(elseLine));
+		
+		//from global memory
+		add(Read, deref(rLoc));
+		add(Receive, rLoc);
+		
+		int nextEnterLine = program.size();
 
-		if (memoryAddress <= LOCAL_HEAP_END) {
-			if (memoryAddress > STACK_END) {
-				// deref from local heap
-				add(Load, memAddr(memoryAddress), rLoc);
-				add(Load, deref(rLoc), rLoc);
-			}
-			else {
-				throw new IllegalArgumentException("No pointers to stack variables allowed!(2)");
-			}
+		changeAt(jumpToEndLine, Jump, abs(nextEnterLine));
 
-		}
-		else if (memoryAddress <= GLOBAL_HEAP_END) {
-			// deref from global heap
-			add(Read, memAddr(memoryAddress));
-			add(Receive, rLoc);
-			add(Read, deref(rLoc));
-			add(Receive, rLoc, rLoc);
-		}
-		else {
-			throw new IllegalArgumentException("Heap size exeeded!!! " + memoryAddress);
-		}
+		freeReg(rCmp);
+		freeReg(rConst);
+		//(no need to push, this is handled in visitPtrDerefExpr)
+
 		return rLoc;
+	}
+	
+	@Override
+	public Op visitAssignDeref(AssignDerefContext ctx)
+	{
+		visit(ctx.expr());
+		Reg rExpr = popReg();
+		 String target = ctx.derefTarget().ID().getText();
+
+		Reg rLoc = getFreeReg();
+		addLoadInto(target, rLoc);
+		
+		Reg rCmp = getFreeReg();
+		Reg rConst = getFreeReg();
+		add(Const, constOp(LOCAL_HEAP_SIZE), rConst);
+		add(Compute, operator(Operator.GtE),rLoc, rConst, rCmp);
+		int branchLine = addPlaceholder("deref branchLine");
+		
+		//from local memory
+		add(Store, rExpr, deref(rLoc));
+		int jumpToEndLine = addPlaceholder("deref jump to end");
+		int elseLine = program.size();
+		changeAt(branchLine, Branch, rCmp, abs(elseLine));
+		
+		//from global memory
+		add(Write, rExpr, deref(rLoc));
+		
+		int nextEnterLine = program.size();
+
+		changeAt(jumpToEndLine, Jump, abs(nextEnterLine));
+
+		freeReg(rCmp);
+		freeReg(rConst);
+		freeReg(rExpr);
+		freeReg(rLoc);
+		//(no need to push, this is handled in visitPtrDerefExpr)
+
+		return null;
 	}
 
 	private void addSave(String variable, Reg reg)
@@ -434,7 +497,13 @@ public class Generator extends CracklBaseVisitor<Op> {
 		}
 	}
 
-	public void addLoadInto(String variable, Reg reg)
+	/**
+	 * 
+	 * @param variable
+	 * @param reg
+	 * @return memory address, depending on whether it's on stack etc...
+	 */
+	public int addLoadInto(String variable, Reg reg)
 	{
 		MemoryLocation loc = currentScope.getMemLoc(variable);
 		System.out.println("addLoadInto : "+variable);
@@ -448,14 +517,17 @@ public class Generator extends CracklBaseVisitor<Op> {
 				add(Compute, operator(Operator.Add), reg(SP), rLoc, rLoc);
 				add(Load, deref(rLoc), reg);
 				freeReg(rLoc);
+				return stackOffset;
 			}else{
 				//on local heap, absolute
 				add(Load, memAddr(loc.getTotalOffset()), reg);
+				return loc.getTotalOffset();
 			}
 		}
 		else if (loc.isGlobal()) {
-			add(Read, memAddr(loc.getVarOffset()));
+			add(Read, memAddr(loc.getTotalOffset()));
 			add(Receive, reg);
+			return loc.getTotalOffset();
 		}
 		else {
 			throw new IllegalArgumentException("Neither global nor local!");
@@ -765,7 +837,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 
 	private void freeReg(Reg r)
 	{
-		//System.out.println("Free : " + r.name);
+		System.out.println("Free : " + r.name);
 		doAssert(!regStack.contains(r.reg));
 		if (Op.gpRegisters.contains(r.reg)) {
 			freeRegisters.push(r.reg);
@@ -779,9 +851,9 @@ public class Generator extends CracklBaseVisitor<Op> {
 
 	private Reg getFreeReg()
 	{
-		//System.out.println("currently free : " + freeRegisters);
+		System.out.println("currently free : " + freeRegisters);
 		Register reg = freeRegisters.pop();
-		//System.out.println("Get: " + reg);
+		System.out.println("Get: " + reg);
 		return reg(reg);
 	}
 
@@ -868,47 +940,31 @@ public class Generator extends CracklBaseVisitor<Op> {
 		System.out.println("newScope: \n"+currentScope);
 
 		List<StatContext> stats = ctx.stat();
-		int toPop = 0;
 
-		// first iteration: check for variables that are to be declared in this
-		// block, and reserve some stack space
-		// this sort of simulates 'moving variables declarations to the top of
-		// the scope'
-		// Type checking makes sure we don't use unassigned and undeclared
-		// variables
-		for (StatContext child : stats) {
-			if (child instanceof DeclContext) {
-				// reserve some space on the stack, to allow for future write
-				reserveStackSpace(((DeclContext) child).ID().getText());
-				toPop++;
+		if (currentScope.getScope() != null) {
+			int toPop = addReserveForLocalVariables(stats);
+			for (StatContext child : stats) {
+				visit(child);
 			}
-			else if (child instanceof PtrDeclContext) {
-				reserveStackSpace(((PtrDeclContext) child).ID(0).getText());
-				toPop++;
-			}
-			else if (child instanceof PtrDeclNormalContext) {
-				reserveStackSpace(((PtrDeclNormalContext) child).ID(0).getText());
-				toPop++;
+			addDecrSp(toPop);
+		}
+		else {
+			for (StatContext child : stats) {
+				visit(child);
 			}
 		}
-
-		for (StatContext child : stats) {
-			visit(child);
-		}
-
-		Reg rPop = getFreeReg();
-		add(Const, constOp(toPop), rPop);
-		add(Compute, operator(Op.Operator.Add), reg(Op.Register.SP), rPop, reg(Op.Register.SP));
-
-		freeReg(rPop);
 		currentScope = currentScope.getScope();
 		return null;
 	}
 
 	private void reserveStackSpace(String s)
 	{
-		debug(String.format("Reserved stack space %s", s));
-		add(Push, reg(RegReserved));
+		if(currentScope.getMemLoc(s).isOnStack()){
+			debug(String.format("Reserved stack space %s", s));
+			add(Push, reg(RegReserved));
+		}else{
+			throw new IllegalAccessError("Can't reserve space for non-stack variable...");
+		}
 	}
 
 	private void debug(String s)
