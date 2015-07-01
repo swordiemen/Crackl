@@ -239,8 +239,6 @@ public class TypeChecker extends CracklBaseListener {
 	public void exitMainfunc(MainfuncContext ctx)
 	{
 		Scope removeScope = scopes.get(scopes.size() - 1);
-		System.out.println("Main func Scope: ");
-		System.out.println(removeScope);
 		scopes.remove(scopes.size() - 1);
 		result.addScope(ctx, removeScope);
 		result.addNode(ctx);
@@ -604,14 +602,21 @@ public class TypeChecker extends CracklBaseListener {
 				paramTypes.put(ctx, list);
 			}
 		}
+		
 	}
 	
 	//Get type, pointer aware
 	private Type getTypeFromContext(TypeContext ctx ){
-		PrimitiveContext primCtx = ctx.primitive();
-		Type type = Type.get(primCtx.getText());
-		if (ctx.PTRTYPE() != null) {
-			type = new Pointer(type);
+		Type type;
+		if(ctx.primitive()==null){
+			//nested pointers
+			type = new Pointer(getTypeFromContext(ctx.type()));
+		}else{
+			PrimitiveContext primCtx = ctx.primitive();
+			type = Type.get(primCtx.getText());
+			if (ctx.PTRTYPE() != null) {
+				type = new Pointer(type);
+			}
 		}
 		return type;
 	}

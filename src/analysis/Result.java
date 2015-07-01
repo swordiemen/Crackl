@@ -3,8 +3,8 @@ package analysis;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ParseTreeProperty;
-import org.antlr.v4.runtime.*;
 
 public class Result {
 	private Set<ParserRuleContext> nodes;	// a tool for iteration

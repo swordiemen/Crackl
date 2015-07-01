@@ -130,7 +130,7 @@ public class Compiler {
 		Compiler compiler = new Compiler();
 		try {
 			//ArrayList<Line> prog = compiler.compile("fibonacci.crk");
-			ArrayList<Line> prog = compiler.compile("pointers.crk");
+			ArrayList<Line> prog = compiler.compile("pointers2.crk");
 			compiler.write("ptest.hs", prog);
 		} catch (IOException e) {
 			e.printStackTrace();

@@ -1,7 +1,5 @@
 package analysis;
 
-import grammar.CracklLexer;
-
 import java.util.Map;
 
 public class Type {

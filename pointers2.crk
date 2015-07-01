@@ -1,0 +1,20 @@
+Program {
+	
+	main{
+		int mut = 5;
+		#int mut_ptr => mut;
+		##int mut_ptr_ptr => mut_ptr;
+
+		#int mut_ptr_ptr_deref = @mut_ptr_ptr;
+
+		//	5, (addr 1), (addr 2), (addr 1), 5 //
+		print(mut);
+		print(mut_ptr );
+		print(mut_ptr_ptr );
+		print(@mut_ptr_ptr);
+		print(@mut_ptr_ptr_deref);
+		
+		
+		//Yay!//
+	}
+}

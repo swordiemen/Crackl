@@ -2,8 +2,7 @@ Program {
 	
 	int heapValue = 4;
 	int heapValue2 = 5;
-	int heapValue3 = 6;
-	int heapValue4 = 7;
+	int heapValue3 = 7;
 	
 	//Call by reference =D //
 	func int refFuncAdd(int toAdd, #int arg_ptr){
@@ -16,11 +15,11 @@ Program {
         print(heapValue);
         print(heapValue2);
         print(heapValue3);
-        print(heapValue4);
         return 0;
 	}
 	
 	main{
+		printHeapValues(); //4, 5, 7//
 		int mutable = 5;
 		#int ptr_mutable => mutable;
 		#int ptr_heapValue => heapValue;
@@ -30,5 +29,8 @@ Program {
 		refFuncAdd(3, ptr_heapValue);
 		print(@ptr_heapValue); // 7 //
 
+		int zes = 6;
+		refFuncAdd(3, &zes);
+		print(zes); // 9 //
 	}
 }

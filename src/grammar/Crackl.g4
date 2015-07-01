@@ -35,7 +35,7 @@ params: ((type ID COMMA)* type ID)?;
 target: ID;
 derefTarget: DEREF ID;
 
-type: PTRTYPE? primitive;
+type: PTRTYPE? primitive | PTRTYPE type;
 primitive: INTTYPE | BOOLTYPE;
 retType: type | VOID;
 

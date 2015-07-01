@@ -53,7 +53,6 @@ import machine.Operand.MemAddr;
 import machine.Operand.Reg;
 
 import org.antlr.v4.runtime.tree.ParseTree;
-import org.antlr.v4.runtime.tree.TerminalNode;
 
 import analysis.MemoryLocation;
 import analysis.Result;
@@ -325,6 +324,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		return toPop;
 	}
 	
+	
 	@Override
 	public Op visitPtrDecl(PtrDeclContext ctx)
 	{
@@ -332,26 +332,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		// #int a => b;
 		Reg rLoc = null;
 		if (ctx.PTRASSIGN() != null) {
-			rLoc = getFreeReg();
-			String rightId = ctx.ID(1).getText();
-			MemoryLocation assignLoc = currentScope.getMemLoc(rightId);
-			if (assignLoc.isGlobal()) {
-					int totalOffset = assignLoc.getTotalOffset();
-					System.out.println("visitPtr  decl (global) VALUE="+totalOffset);
-					add(Const, constOp(totalOffset),rLoc);
-			}
-			else {
-				if(assignLoc.isOnStack()){
-					int totalOffset = currentScope.getStackOffset(rightId);
-					add(Const, constOp(totalOffset),rLoc);
-					add(Compute, operator(Operator.Add), reg(SP), rLoc, rLoc);
-					//throw new IllegalArgumentException("No pointers to stack variables allowed!");
-				}else{
-					int totalOffset = assignLoc.getTotalOffset();
-					System.out.println("visitPtr decl VALUE="+totalOffset);
-					add(Const, constOp(totalOffset),rLoc);
-				}
-			}
+			rLoc = addReferVariableIntoReg(ctx.ID(1).getText());
 		}
 		else {
 			rLoc = reg(Zero); // null-pointer
@@ -359,6 +340,37 @@ public class Generator extends CracklBaseVisitor<Op> {
 		addSave(ctx.ID(0).getText(), rLoc);
 		freeReg(rLoc);
 		return null;
+	}
+
+	/**
+	 * Add instructions to get the reference to 'variable', and put it inside a register
+	 * @param variable - Name of which variable's memory address to store in a register
+	 * @return Reg containing the reference to the variable
+	 */
+	private Reg addReferVariableIntoReg(String variable)
+	{
+		Reg rLoc;
+		rLoc = getFreeReg();
+		MemoryLocation assignLoc = currentScope.getMemLoc(variable);
+		if (assignLoc.isGlobal()) {
+				int totalOffset = assignLoc.getTotalOffset();
+				System.out.println("visitPtr  decl (global) VALUE="+totalOffset);
+				add(Const, constOp(totalOffset),rLoc);
+		}
+		else {
+			if(assignLoc.isOnStack()){
+				int totalOffset = currentScope.getStackOffset(variable);
+				totalOffset += pushedDuringFunctionCallSetup;
+				add(Const, constOp(totalOffset),rLoc);
+				add(Compute, operator(Operator.Add), reg(SP), rLoc, rLoc);
+				//throw new IllegalArgumentException("No pointers to stack variables allowed!");
+			}else{
+				int totalOffset = assignLoc.getTotalOffset();
+				System.out.println("visitPtr decl VALUE="+totalOffset);
+				add(Const, constOp(totalOffset),rLoc);
+			}
+		}
+		return rLoc;
 	}
 
 	@Override
@@ -538,9 +550,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 	public Op visitPtrRefExpr(PtrRefExprContext ctx)
 	{
 		// | REF ID #ptrRefExpr
-		MemoryLocation memLoc = currentScope.getMemLoc(ctx.ID().getText());
-		Reg rAddr = getFreeReg();
-		add(Const, constOp(memLoc.getScopeOffset() + memLoc.getVarOffset()), rAddr);
+		Reg rAddr = addReferVariableIntoReg(ctx.ID().getText());
 		pushReg(rAddr);
 		return null;
 	}
