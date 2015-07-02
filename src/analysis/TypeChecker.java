@@ -15,7 +15,7 @@ import grammar.CracklParser.BlockStatContext;
 import grammar.CracklParser.CompExprContext;
 import grammar.CracklParser.ConstBoolExprContext;
 import grammar.CracklParser.ConstNumExprContext;
-import grammar.CracklParser.ConstTextExprContext;
+//import grammar.CracklParser.ConstTextExprContext;
 import grammar.CracklParser.DeclContext;
 import grammar.CracklParser.FuncCallContext;
 import grammar.CracklParser.FuncDeclContext;
@@ -54,6 +54,10 @@ import org.antlr.v4.runtime.tree.TerminalNode;
 public class TypeChecker extends CracklBaseListener {
 
 	public static final String VOIDSTRING = "void";
+	
+	public static final String FUNC_NOT_IN_TOP_LEVEL_ERROR = "Functions can only be made in the top level scope.";
+	public static final String VARIABLE_NOT_INITIALIZED_ERROR = "Variable '%s' is not initialized.";
+	public static final String GLOBAL_VARIABLE_NOT_IN_OUTER_SCOPE_ERROR = "Global variable '%s' may only be declared in the top level scope.";
 
 	ParseTreeProperty<Type> types;
 	ParseTreeProperty< ArrayList<Type>> paramTypes;
@@ -181,7 +185,7 @@ public class TypeChecker extends CracklBaseListener {
 				return true;
 			}
 		}
-		addError(String.format("Variable '%s' is not initialized.", var));
+		addError(String.format(VARIABLE_NOT_INITIALIZED_ERROR, var));
 		return false;
 	}
 
@@ -200,11 +204,11 @@ public class TypeChecker extends CracklBaseListener {
 	@Override
 	public void exitDecl(DeclContext ctx)
 	{
+		String var = ctx.ID().getText();
 		boolean global = (ctx.GLOBAL() != null);
 		if(global && (scopes.size() > 1)){
-			addError(ctx, "Global variables may only be defined in the outer scope.");
+			addError(ctx, String.format(GLOBAL_VARIABLE_NOT_IN_OUTER_SCOPE_ERROR, var));
 		}
-		String var = ctx.ID().getText();
 		Scope curScope = scopes.get(scopes.size()-1);
 		if(curScope.getType(var) != null){
 			addError(ctx, String.format("Variable '%s' already declared in this scope!", var));
@@ -247,9 +251,10 @@ public class TypeChecker extends CracklBaseListener {
 
 	@Override
 	public void exitArrayDeclInit(ArrayDeclInitContext ctx) {
+		String var = ctx.ID().getText();
 		boolean global = (ctx.GLOBAL() != null);
 		if(global && (scopes.size() > 1)){
-			addError(ctx, "Global variables may only be defined in the outer scope.");
+			addError(ctx, String.format(GLOBAL_VARIABLE_NOT_IN_OUTER_SCOPE_ERROR, var));
 		}
 		Type type = types.get(ctx.expr());
 		boolean correct = checkType(type, types.get(ctx.expr()),ctx);
@@ -265,7 +270,6 @@ public class TypeChecker extends CracklBaseListener {
 		}
 		**/ 
 
-		String var = ctx.ID().getText();
 		Scope curScope = scopes.get(scopes.size()-1);
 		if(curScope.getType(var) != null){
 			addError(ctx,String.format("Variable '%s' already declared in this scope!", var));
@@ -285,11 +289,11 @@ public class TypeChecker extends CracklBaseListener {
 
 	@Override
 	public void exitArrayDecl(ArrayDeclContext ctx) {
+		String var = ctx.ID().getText();
 		boolean global = (ctx.GLOBAL() != null);
 		if(global && (scopes.size() > 1)){
-			addError(ctx, "Global variables may only be defined in the outer scope.");
+			addError(ctx, String.format(GLOBAL_VARIABLE_NOT_IN_OUTER_SCOPE_ERROR, var));
 		}
-		String var = ctx.ID().getText();
 		Scope curScope = scopes.get(scopes.size()-1);
 		if(curScope.getType(var) != null){
 			addError(ctx,String.format("Variable '%s' already declared in this scope!", var));
@@ -312,14 +316,14 @@ public class TypeChecker extends CracklBaseListener {
 	@Override
 	public void exitPtrDecl(PtrDeclContext ctx) {
 		boolean global = (ctx.GLOBAL() != null);
+		String var = ctx.ID(0).getText();
 		if(global && (scopes.size() > 1)){
-			addError(ctx, "Global variables may only be defined in the outer scope.");
+			addError(ctx, String.format(GLOBAL_VARIABLE_NOT_IN_OUTER_SCOPE_ERROR, var));
 		}
 
 		Scope curScope = scopes.get(scopes.size() - 1);
-		String var = ctx.ID(0).getText();
 		if(curScope.exists(var)){
-			addError(ctx, "Variable '" + var + "' is already declared!");
+			addError(ctx, String.format(VARIABLE_NOT_INITIALIZED_ERROR, var));
 		}
 		Type lhsType = getTypeFromContext(ctx.type());
 		if(ctx.ID().size() > 1){
@@ -342,14 +346,14 @@ public class TypeChecker extends CracklBaseListener {
 
 	@Override
 	public void exitPtrDeclNormal(PtrDeclNormalContext ctx) {
+		String var = ctx.ID(0).getText();
 		boolean global = (ctx.GLOBAL() != null);
 		if(global && (scopes.size() > 1)){
-			addError(ctx, "Global variables may only be defined in the outer scope.");
+			addError(ctx, String.format(GLOBAL_VARIABLE_NOT_IN_OUTER_SCOPE_ERROR, var));
 		}
 		Scope curScope = scopes.get(scopes.size() - 1);
-		String var = ctx.ID(0).getText();
 		if(curScope.exists(var)){
-			addError(ctx, "Variable '" + var + "' is already declared!");
+			addError(ctx, String.format(VARIABLE_NOT_INITIALIZED_ERROR, var));
 		}
 		
 		Pointer pointerType = (Pointer)getTypeFromContext(ctx.type());
@@ -375,7 +379,10 @@ public class TypeChecker extends CracklBaseListener {
 	{
 		Scope lastScope; 
 		lastScope = scopes.get(scopes.size() - 1);
-		assert(lastScope.getScope() == null); //should be the outer scope! or something
+		if(lastScope.getPreviousScope() != null){
+			addError(ctx, FUNC_NOT_IN_TOP_LEVEL_ERROR);
+		}
+		assert(lastScope.getPreviousScope() == null); //should be the outer scope! or something
 
 		Scope newScope = new Scope(lastScope, true);
 		scopes.add(newScope);
@@ -515,23 +522,22 @@ public class TypeChecker extends CracklBaseListener {
 		}else{
 			types.put(ctx, funcType);
 			//TODO: find good way to support calling a function Before exiting it's declaration (e.g. recursion or even reordered functions)
-			return;
-			/**
-			int funcParamsAmount = funcParams.get(funcName).size();
-			int actualAmount = ctx.expr().size();
-			if(funcParamsAmount != actualAmount){
-				addError(ctx, String.format("Invalid amount of arguments for function '%s', expected %d but got %d.", funcName, funcParamsAmount, actualAmount));
-			}else{
-				for(int i = 0; i < actualAmount; i++){
-					Type type = types.get(ctx.expr(i));
-					if(type!=null){
-						checkType(funcParams.get(funcName).get(i),type , ctx);
-					}else{
-						System.out.println("Warning: function referenced before declaration: "+funcName);
-					}
-				}
-			}
-			**/
+			//return;
+			
+//			int funcParamsAmount = funcParams.get(funcName).size();
+//			int actualAmount = ctx.expr().size();
+//			if(funcParamsAmount != actualAmount){
+//				addError(ctx, String.format("Invalid amount of arguments for function '%s', expected %d but got %d.", funcName, funcParamsAmount, actualAmount));
+//			}else{
+//				for(int i = 0; i < actualAmount; i++){
+//					Type type = types.get(ctx.expr(i));
+//					if(type!=null){
+//						checkType(funcParams.get(funcName).get(i),type , ctx);
+//					}else{
+//						System.out.println("Warning: function referenced before declaration: "+funcName);
+//					}
+//				}
+//			}
 		}
 	}
 
@@ -636,13 +642,13 @@ public class TypeChecker extends CracklBaseListener {
 		result.addNode(ctx);
 	}
 
-	@Override
-	public void exitConstTextExpr(ConstTextExprContext ctx)
-	{
-		types.put(ctx, Type.TEXT);
-		result.addType(ctx, Type.TEXT);
-		result.addNode(ctx);
-	}
+//	@Override
+//	public void exitConstTextExpr(ConstTextExprContext ctx)
+//	{
+//		types.put(ctx, Type.TEXT);
+//		result.addType(ctx, Type.TEXT);
+//		result.addNode(ctx);
+//	}
 
 	@Override
 	public void exitConstNumExpr(ConstNumExprContext ctx) {

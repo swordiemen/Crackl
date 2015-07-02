@@ -42,7 +42,7 @@ public class Scope {
 	 * Returns the Scope which is above this level.
 	 * @return <b>prevScope</b> The Scope which is one level above this Scope, or null if this is the top Scope.
 	 */
-	public Scope getScope(){
+	public Scope getPreviousScope(){
 		return prevScope;
 	}
 
@@ -179,13 +179,13 @@ public class Scope {
 	 */
 	public MemoryLocation getMemLoc(String var){
 		MemoryLocation memLoc = null;
-		Boolean global = isGlobal(var);
+		Boolean exists = exists(var);
 
-		if(global != null){
-			memLoc = new MemoryLocation(this, getOffset(var), global);
-		}else if(prevScope == null && global == null){
+		if(exists){
+			memLoc = new MemoryLocation(this, getOffset(var), isGlobal(var));
+		}else if(prevScope == null && !exists){ // last scope, thus variable does not exist at all.
 			return null;
-		}else{
+		}else{	// can't find it in this scope, check the upper scope.
 			return prevScope.getMemLoc(var);
 		}
 		return memLoc;
@@ -224,13 +224,13 @@ public class Scope {
 	}
 
 	/**
-	 * @return how far from the sp the variable is located, given that your in 'currentScope'
+	 * @return how far from the sp the variable is located, given that you're in 'currentScope'
 	 */
 	public int getStackOffset(String var)
 	{
 		int offset = getStackSize();
 		if(!this.exists(var)){
-			offset += this.getScope().getStackOffset(var);
+			offset += this.getPreviousScope().getStackOffset(var);
 		}else{
 			offset -= this.getOffset(var);
 			offset --;

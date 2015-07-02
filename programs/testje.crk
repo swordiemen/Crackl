@@ -1,0 +1,11 @@
+Program {
+	
+	func int b(int a){
+		return a;
+	}
+
+	main {
+		int b;
+		int a = 1 + b;
+	}
+}
