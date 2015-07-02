@@ -4,7 +4,6 @@ import static machine.Op.Instruction.*;
 import static machine.Op.Operator.*;
 import static machine.Op.Register.*;
 import grammar.CracklBaseVisitor;
-import grammar.CracklParser.AddExprContext;
 import grammar.CracklParser.AndExprContext;
 import grammar.CracklParser.ArrayAssignStatContext;
 import grammar.CracklParser.ArrayDeclContext;
@@ -25,8 +24,11 @@ import grammar.CracklParser.FuncCallStatContext;
 import grammar.CracklParser.FuncDeclContext;
 import grammar.CracklParser.IdExprContext;
 import grammar.CracklParser.IfStatContext;
+import grammar.CracklParser.LockDeclContext;
+import grammar.CracklParser.LockStatContext;
 import grammar.CracklParser.MainFuncStatContext;
 import grammar.CracklParser.MainfuncContext;
+import grammar.CracklParser.OperatorExprContext;
 import grammar.CracklParser.OutExprStatContext;
 import grammar.CracklParser.PrintExprStatContext;
 import grammar.CracklParser.ProgramContext;
@@ -38,6 +40,7 @@ import grammar.CracklParser.PtrRefExprContext;
 import grammar.CracklParser.RetContext;
 import grammar.CracklParser.SprockellIdExprContext;
 import grammar.CracklParser.StatContext;
+import grammar.CracklParser.UnlockStatContext;
 import grammar.CracklParser.WhileStatContext;
 
 import java.util.ArrayList;
@@ -650,13 +653,12 @@ public class Generator extends CracklBaseVisitor<Op> {
 	{
 		visit(ctx.expr()); // write the to be allocated size to register
 		Reg rArraySize = popReg();
-		addAllocateArray(rArraySize, ctx.ID().getText());
+		addAllocateGlobal(rArraySize, ctx.ID().getText());
 		return null;
 	}
 
 	/**
 	 * Add instructions to retrieve the base address of some array, given a variable name Leaks a register!
-	 * 
 	 * @param variable
 	 * @return register containing the base address (on the heap) of an array
 	 */
@@ -675,7 +677,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 	 * @param rArraySize *            - Register containing the size of the array
 	 * @param variableName *            - Where (which variable) to store the array starting pointer
 	 */
-	private void addAllocateArray(Reg rArraySize, String variableName)
+	private void addAllocateGlobal(Reg rArraySize, String variableName)
 	{
 		// Retrieve heappointer
 		Reg rHeapPointer = addGetGlobalHeappointer();
@@ -683,12 +685,24 @@ public class Generator extends CracklBaseVisitor<Op> {
 		// Store current heappointer at at variable
 		addSave(variableName, rHeapPointer);
 
-		// MemoryLocation loc = currentScope.getMemLoc(variableName);
-		// add(Store, rHeapPointer, addr(loc.getScopeOffset(),
-		// loc.getVarOffset()));
-
 		// Increase and write back changed heappointer
-		addAllocateGlobal(rArraySize, rHeapPointer);
+		addIncrementHeappointer(rArraySize, rHeapPointer);
+	}
+
+	/**
+	 * Increments and writes back the heap pointer Note: it consumes two registers, both of which are free'd implicitly
+	 * 
+	 * @param rArraySize
+	 *            - Register containing the size of the array
+	 * @param rHeapPointer
+	 *            - Register containing the current end of the heap
+	 */
+	private void addIncrementHeappointer(Reg rArraySize, Reg rHeapPointer)
+	{
+		add(Compute, operator(Add), rArraySize, rHeapPointer, rHeapPointer);
+		add(Write, rHeapPointer, memAddr(MEMADDR_GLOBAL_HP));// maybe TODO: test and set?
+		freeReg(rArraySize);
+		freeReg(rHeapPointer);
 	}
 
 	/**
@@ -711,21 +725,6 @@ public class Generator extends CracklBaseVisitor<Op> {
 		return rHeapPointer;
 	}
 
-	/**
-	 * Increments and writes back the heap pointer Note: it consumes two registers, both of which are free'd implicitly
-	 * 
-	 * @param rArraySize
-	 *            - Register containing the size of the array
-	 * @param rHeapPointer
-	 *            - Register containing the current end of the heap
-	 */
-	private void addAllocateGlobal(Reg rArraySize, Reg rHeapPointer)
-	{
-		add(Compute, operator(Add), rArraySize, rHeapPointer, rHeapPointer);
-		add(Write, rHeapPointer, memAddr(MEMADDR_GLOBAL_HP));// maybe TODO: test and set?
-		freeReg(rArraySize);
-		freeReg(rHeapPointer);
-	}
 
 	@Override
 	public Op visitArrayAssignStat(ArrayAssignStatContext ctx)
@@ -817,17 +816,14 @@ public class Generator extends CracklBaseVisitor<Op> {
 	}
 
 	@Override
-	public Op visitAddExpr(AddExprContext ctx)
+	public Op visitOperatorExpr(OperatorExprContext ctx)
 	{
 		visit(ctx.expr(0));
 		visit(ctx.expr(1));
 		Reg r1 = popReg();
 		Reg r2 = popReg();
-		if(ctx.MINUS()!=null){
-			add(Compute, operator(Sub),r2 , r1, r1);
-		}else{
-			add(Compute, operator(Add), r1, r2, r1);
-		}
+		Operator operator = Op.getOperatorByString(ctx.OPERATOR().getText());
+		add(Compute, operator(operator),r2 , r1, r1);
 		freeReg(r2);
 		pushReg(r1);
 		return null;
@@ -1053,10 +1049,55 @@ public class Generator extends CracklBaseVisitor<Op> {
 			System.out.println(s);
 		}
 	}
+	
+	@Override
+	public Op visitLockDecl(LockDeclContext ctx)
+	{
+		//Just zeroing the lock value and write the pointer to the variable
+		Reg rLockPointer = getFreeReg();
+		add(Const, constOp(result.getStaticGlobals().get(ctx.ID().getText())), rLockPointer);
+		add(Write,reg(Zero) ,deref(rLockPointer) );
+		addSave(ctx.ID().getText(), rLockPointer);
+		freeReg(rLockPointer);
+		return null;
+	}
+	
+	@Override
+	public Op visitLockStat(LockStatContext ctx)
+	{
+		visit(ctx.expr());
+		Reg rLockAddress = popReg();
+		Reg rIsLocked = getFreeReg();
+		int retryLine = program.size();
+		add(TestAndSet, deref(rLockAddress));
+		add(Receive, rIsLocked);
+		add(Compute, operator(Equal), reg(Zero), rIsLocked, rIsLocked);
+		add(Branch, rIsLocked, abs(retryLine));
+		freeReg(rLockAddress);
+		freeReg(rIsLocked);
+		return null;
+	}
 
+	@Override
+	public Op visitUnlockStat(UnlockStatContext ctx)
+	{
+		visit(ctx.expr());
+		Reg rLockAddress = popReg();
+		add(Write, reg(Zero), deref(rLockAddress));
+		freeReg(rLockAddress);
+		return null;
+	}
+	
 	@Override
 	public Op visitProgram(ProgramContext ctx)
 	{
+		//First reserve global heap space for static variables, e.g. locks should always be at the same location
+		int numberOfStaticGlobals = result.numberOfStaticGlobals;
+		Reg rHeappointer = addGetGlobalHeappointer();
+		Reg rStaticGlobals = getFreeReg();
+		add(Const, constOp(numberOfStaticGlobals), rStaticGlobals);
+		addIncrementHeappointer(rStaticGlobals, rHeappointer);
+		
 		List<ParseTree> unordered = new ArrayList<ParseTree>(ctx.stat().children);
 		List<ParseTree> reordered = new ArrayList<ParseTree>(unordered.size());
 		//REORDER: DECLARATIONS FIRST

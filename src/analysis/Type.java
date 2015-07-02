@@ -5,7 +5,7 @@ import java.util.Map;
 public class Type {
 
 	public enum Types {
-		Bool, Int, Err, Array, Pointer, Void, Text
+		Bool, Int, Err, Array, Pointer, Void, Text, Lock
 	}
 	
 	
@@ -15,7 +15,7 @@ public class Type {
 	public static final Type ERR = new Type(Types.Bool);
 	public static final Type VOID = new Type(Types.Void);
 	public static final Type TEXT = new Type(Types.Text);
-	//protected Array array;
+	public static final Type LOCK = new Type(Types.Lock);;
 
 	public Types type;
 
@@ -60,6 +60,8 @@ public class Type {
 		case Err:
 			return 0;
 		case Text:
+			return 1;
+		case Lock:
 			return 1;
 		default:
 			throw new IllegalArgumentException("Cannot get the size of an unknown type.");

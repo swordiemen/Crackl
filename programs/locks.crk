@@ -1,0 +1,18 @@
+Program(sprockells=20) {
+
+	lock lockA;
+	global int sharedValue = 0;
+
+	main {
+	
+		int i = 0;
+
+		lock(lockA);
+		while(i < 2){
+			sharedValue = sharedValue + 1;
+			i = i + 1;
+		}
+		print(sharedValue);
+		unlock(lockA);
+	}
+}
