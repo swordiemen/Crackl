@@ -1,0 +1,39 @@
+Program(sprockells=2) {
+
+	global boolean[] flag = [false, false];
+	global int turn = 9;
+
+	global int counter = 0; //mutable
+
+	func int peterson (int sid)
+	{
+		flag[sid] = true;
+		int othersid = 0;
+		if(sid == 0){
+			othersid = 1;
+		}else{
+			othersid = 0;
+		}
+		turn = othersid;
+		while (flag[othersid] && (turn == othersid)){
+			//out("waiting");
+			//waiting...
+		}
+		//CRIT
+		counter = counter + 1;
+		//\CRIT
+		flag[sid] = false;
+		
+		return 0;
+	}
+
+	main {
+		int sid = getSprockellId();
+		print(sid);
+		peterson(sid);
+		
+		//If algorithm is working, this should always print 2 (counter's access is mutually exclusive)
+		//When run on 2 sprockells
+		print(counter);
+	}
+}

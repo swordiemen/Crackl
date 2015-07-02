@@ -1,7 +1,7 @@
 package generation;
 
 import static machine.Op.Instruction.*;
-import static machine.Op.Operator.Add;
+import static machine.Op.Operator.*;
 import static machine.Op.Register.*;
 import grammar.CracklBaseVisitor;
 import grammar.CracklParser.AddExprContext;
@@ -36,6 +36,7 @@ import grammar.CracklParser.PtrDeclNormalContext;
 import grammar.CracklParser.PtrDerefExprContext;
 import grammar.CracklParser.PtrRefExprContext;
 import grammar.CracklParser.RetContext;
+import grammar.CracklParser.SprockellIdExprContext;
 import grammar.CracklParser.StatContext;
 import grammar.CracklParser.WhileStatContext;
 
@@ -101,6 +102,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		this.functionTable = functionTable;
 		freeRegisters.addAll(Op.gpRegisters);
 	}
+	
 
 	@Override
 	public Op visitFuncDecl(FuncDeclContext ctx)
@@ -248,7 +250,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 
 		Reg rPop = getFreeReg();
 		add(Const, constOp(toPop), rPop);
-		add(Compute, operator(Op.Operator.Add), reg(Op.Register.SP), rPop, reg(Op.Register.SP));
+		add(Compute, operator(Add), reg(Op.Register.SP), rPop, reg(Op.Register.SP));
 
 		freeReg(rPop);
 		currentScope = currentScope.getScope();
@@ -265,7 +267,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 	{
 		Reg r1 = getFreeReg();
 		add(Const, constOp(toPop), r1);
-		add(Compute, operator(Op.Operator.Add), reg(Op.Register.SP), r1, reg(Op.Register.SP));
+		add(Compute, operator(Add), reg(Op.Register.SP), r1, reg(Op.Register.SP));
 		freeReg(r1);
 	}
 
@@ -332,7 +334,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 				int totalOffset = currentScope.getStackOffset(variable);
 				totalOffset += pushedDuringFunctionCallSetup;
 				add(Const, constOp(totalOffset), rLoc);
-				add(Compute, operator(Operator.Add), reg(SP), rLoc, rLoc);
+				add(Compute, operator(Add), reg(SP), rLoc, rLoc);
 				// throw new IllegalArgumentException("No pointers to stack variables allowed!");
 			}
 			else {
@@ -391,7 +393,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		Reg rCmp = getFreeReg();
 		Reg rConst = getFreeReg();
 		add(Const, constOp(LOCAL_HEAP_SIZE), rConst);
-		add(Compute, operator(Operator.GtE), rLoc, rConst, rCmp);
+		add(Compute, operator(GtE), rLoc, rConst, rCmp);
 		int branchLine = addPlaceholder("deref branchLine");
 
 		// from local memory
@@ -428,7 +430,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		Reg rCmp = getFreeReg();
 		Reg rConst = getFreeReg();
 		add(Const, constOp(LOCAL_HEAP_SIZE), rConst);
-		add(Compute, operator(Operator.GtE), rLoc, rConst, rCmp);
+		add(Compute, operator(GtE), rLoc, rConst, rCmp);
 		int branchLine = addPlaceholder("deref branchLine");
 
 		// from local memory
@@ -463,7 +465,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 				int stackOffset = currentScope.getStackOffset(variable);
 				stackOffset+=pushedDuringFunctionCallSetup; //Edge-case where e.g. return address and parameters are already being pushed on the stack...
 				add(Const, constOp(stackOffset), rLoc);
-				add(Compute, operator(Operator.Add), reg(SP), rLoc, rLoc);
+				add(Compute, operator(Add), reg(SP), rLoc, rLoc);
 				add(Store, reg, deref(rLoc));
 				freeReg(rLoc);
 			}
@@ -493,7 +495,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 				int stackOffset = currentScope.getStackOffset(variable);
 				stackOffset+=pushedDuringFunctionCallSetup; //Edge-case where e.g. return address and parameters are already being pushed on the stack...
 				add(Const, constOp(stackOffset), rLoc);
-				add(Compute, operator(Operator.Add), reg(SP), rLoc, rLoc);
+				add(Compute, operator(Add), reg(SP), rLoc, rLoc);
 				add(Load, deref(rLoc), reg);
 				freeReg(rLoc);
 				return stackOffset;
@@ -543,7 +545,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		addSaveGlobalHeappointer(rArrayPointer);
 		//Decremen rArrayPointer again, because we want to 'return' the BASE address
 		add(Const, constOp(chars.length), rOne); 
-		add(Compute, operator(Operator.Sub), rArrayPointer, rOne, rArrayPointer);
+		add(Compute, operator(Sub), rArrayPointer, rOne, rArrayPointer);
 		pushReg(rArrayPointer);
 		freeReg(rOne);
 		return null;
@@ -563,7 +565,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		add(Const, constOp(STRING_TERMINATOR), rTermChar);
 		add(Read, deref(rStringPointer));
 		add(Receive, rChar);
-		add(Compute, operator(Operator.Equal), rChar, rTermChar, rContinue); // these can be optimized if \0 terminated
+		add(Compute, operator(Equal), rChar, rTermChar, rContinue); // these can be optimized if \0 terminated
 		freeReg(rContinue);
 		int branchLine = addPlaceholder("outBranch");
 
@@ -775,7 +777,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 	{
 		visit(ctx.expr());
 		Reg r1 = popReg();
-		add(Compute, operator(Operator.Equal), r1, reg(Zero), r1);
+		add(Compute, operator(Equal), r1, reg(Zero), r1);
 		freeReg(r1); // TODO: Maybe free it AFTER some other operation
 		int branchLine = addPlaceholder();
 		if (ctx.ELSE() != null) {
@@ -804,7 +806,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		int evalLine = program.size();
 		visit(ctx.expr());
 		Reg continueReg = popReg();
-		add(Compute, operator(Operator.Equal), continueReg, reg(Zero), continueReg);
+		add(Compute, operator(Equal), continueReg, reg(Zero), continueReg);
 		freeReg(continueReg);
 		int branchLine = addPlaceholder("whileBranch");
 		visit(ctx.stat()); // body
@@ -822,7 +824,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		Reg r1 = popReg();
 		Reg r2 = popReg();
 		if(ctx.MINUS()!=null){
-			add(Compute, operator(Operator.Sub),r2 , r1, r1);
+			add(Compute, operator(Sub),r2 , r1, r1);
 		}else{
 			add(Compute, operator(Add), r1, r2, r1);
 		}
@@ -897,6 +899,13 @@ public class Generator extends CracklBaseVisitor<Op> {
 	{
 		Reg reg = reg(regStack.pop());
 		return reg;
+	}
+	
+	@Override
+	public Op visitSprockellIdExpr(SprockellIdExprContext ctx)
+	{
+		pushReg(reg(Register.SPID));
+		return null;
 	}
 
 	private void freeReg(Reg r)
@@ -1098,7 +1107,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		visit(ctx.expr(1));
 		Reg r1 = popReg();
 		Reg r2 = popReg();
-		add(Compute, operator(Add), r1, r2, r1);
+		add(Compute, operator(And), r1, r2, r1);
 		freeReg(r2);
 		pushReg(r1);
 		return null;

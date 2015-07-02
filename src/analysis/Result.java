@@ -11,6 +11,7 @@ public class Result {
 	private ParseTreeProperty<Type> types;
 	private ParseTreeProperty<Integer> offsets;
 	private ParseTreeProperty<Scope> scopes;
+	public int numberOfSprockells; //how many sprockells the program will run on
 	
 	/**
 	 * Creates a new Result class.

@@ -26,6 +26,7 @@ import grammar.CracklParser.IfStatContext;
 import grammar.CracklParser.LockStatContext;
 import grammar.CracklParser.MainfuncContext;
 import grammar.CracklParser.NotExprContext;
+import grammar.CracklParser.NumOfSprockellContext;
 import grammar.CracklParser.OrExprContext;
 import grammar.CracklParser.ParExprContext;
 import grammar.CracklParser.ParamsContext;
@@ -38,6 +39,7 @@ import grammar.CracklParser.PtrDeclNormalContext;
 import grammar.CracklParser.PtrDerefExprContext;
 import grammar.CracklParser.PtrRefExprContext;
 import grammar.CracklParser.RetContext;
+import grammar.CracklParser.SprockellIdExprContext;
 import grammar.CracklParser.TypeContext;
 import grammar.CracklParser.UnlockStatContext;
 
@@ -704,6 +706,18 @@ public class TypeChecker extends CracklBaseListener {
 		return res;
 	}
 
+	@Override
+	public void exitSprockellIdExpr(SprockellIdExprContext ctx)
+	{
+		types.put(ctx, Type.INT);
+	}
+	
+	@Override
+	public void enterNumOfSprockell(NumOfSprockellContext ctx)
+	{
+		result.numberOfSprockells = Integer.parseInt(ctx.NUM().getText());
+	}
+	
 	/**
 	 * Checks if the type of <code>actual</code> is equal to <code>expected</code>. Adds an error (with Context <code>ctx</code>) to this Typechecker
 	 * if the types are not equal.
