@@ -16,7 +16,7 @@ Program {
 
 	main {
 		int number = 0;
-		while(number < 6+1){
+		while(number < 18){
 			print(fib(number));
 			number = number + 1;
 		}

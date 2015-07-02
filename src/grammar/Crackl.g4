@@ -19,7 +19,6 @@ stat: GLOBAL? type ID  (ASSIGN expr)? SEMI  		#decl
     | mainfunc										#mainFuncStat
     | funcDecl										#funcDeclStat
     | PRINT LPAR expr RPAR SEMI 					#printExprStat
-    | OUT LPAR expr RPAR SEMI 						#outExprStat
     | LOCK LPAR expr RPAR							#lockStat
     | UNLOCK LPAR expr RPAR							#unlockStat
      ;
@@ -101,7 +100,6 @@ WHILE: 'while';
 ELSE: 'else';
 FOR: 'for';
 PRINT: 'print';
-OUT: 'out';
 COMMA: ',';
 VOID: 'void';
 GLOBAL: 'global';
