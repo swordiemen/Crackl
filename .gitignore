@@ -73,3 +73,5 @@ machine/ptest.hs
 machine/New Text Document.txt
 src/grammar/Crackl.tokens
 machine/compile_sprockell.bat
+machine/crk_program.hs
+*.exe
