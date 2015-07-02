@@ -17,6 +17,7 @@ import grammar.CracklParser.BlockStatContext;
 import grammar.CracklParser.CompExprContext;
 import grammar.CracklParser.ConstBoolExprContext;
 import grammar.CracklParser.ConstNumExprContext;
+import grammar.CracklParser.ConstTextExprContext;
 import grammar.CracklParser.DeclContext;
 import grammar.CracklParser.ExprContext;
 import grammar.CracklParser.FuncCallContext;
@@ -26,6 +27,7 @@ import grammar.CracklParser.IdExprContext;
 import grammar.CracklParser.IfStatContext;
 import grammar.CracklParser.MainFuncStatContext;
 import grammar.CracklParser.MainfuncContext;
+import grammar.CracklParser.OutExprStatContext;
 import grammar.CracklParser.PrintExprStatContext;
 import grammar.CracklParser.ProgramContext;
 import grammar.CracklParser.PtrAssignContext;
@@ -61,8 +63,8 @@ import analysis.Scope;
 
 public class Generator extends CracklBaseVisitor<Op> {
 
-	public static final boolean DEBUG_OTHER = false;
-	public static final boolean DEBUG_REG = false;
+	public static final boolean DEBUG_OTHER = true;
+	public static final boolean DEBUG_REG = true;
 
 	public ArrayList<Line> program = new ArrayList<Line>();
 	
@@ -88,6 +90,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 	public static final int GLOBAL_HEAP_START = LOCAL_HEAP_END + 1;
 	public static final int GLOBAL_HEAP_END = 16 * 1000 * 1000 - 1;
 	public static final int GLOBAL_HEAP_SIZE = GLOBAL_HEAP_START - GLOBAL_HEAP_END;
+	private static final char STRING_TERMINATOR = '$';
 
 	// Location of the heap pointer (points to next free space on heap
 	final int MEMADDR_LOCAL_HP = 32;
@@ -517,6 +520,77 @@ public class Generator extends CracklBaseVisitor<Op> {
 		Reg rAddr = addReferVariableIntoReg(ctx.ID().getText());
 		pushReg(rAddr);
 		return null;
+	}
+	
+	@Override
+	public Op visitConstTextExpr(ConstTextExprContext ctx)
+	{
+		Reg rArrayPointer = addGetGlobalHeappointer();
+		Reg rOne = getFreeReg();
+		add(Const, constOp(1), rOne);
+		String text = ctx.STRING().getText();
+		text = text.substring(1, text.length()-1);
+		text = text + STRING_TERMINATOR;
+		char[] chars = text.toCharArray();
+		for (char c : chars) {
+			Reg rChar = getFreeReg();
+			add(Const, constOp(c), rChar);
+			add(Write, rChar, deref(rArrayPointer));
+			add(Compute, operator(Add), rOne, rArrayPointer, rArrayPointer);
+			freeReg(rChar);
+		}
+		
+		addSaveGlobalHeappointer(rArrayPointer);
+		//Decremen rArrayPointer again, because we want to 'return' the BASE address
+		add(Const, constOp(chars.length), rOne); 
+		add(Compute, operator(Operator.Sub), rArrayPointer, rOne, rArrayPointer);
+		pushReg(rArrayPointer);
+		freeReg(rOne);
+		return null;
+	}
+	
+	@Override
+	public Op visitOutExprStat(OutExprStatContext ctx)
+	{
+		visit(ctx.expr());
+		Reg rStringPointer = popReg();
+
+		int evalLine = program.size();
+
+		Reg rChar = getFreeReg();
+		Reg rContinue = getFreeReg();
+		Reg rTermChar = getFreeReg();
+		add(Const, constOp(STRING_TERMINATOR), rTermChar);
+		add(Read, deref(rStringPointer));
+		add(Receive, rChar);
+		add(Compute, operator(Operator.Equal), rChar, rTermChar, rContinue); // these can be optimized if \0 terminated
+		freeReg(rContinue);
+		int branchLine = addPlaceholder("outBranch");
+
+		// --startbody-------------
+		int ASCII_NEWLINE = (int) '\n';
+
+		add(Write, rChar, MemAddr.StdIO); // write char
+
+		// increment pointer
+		Reg rOne = getFreeReg();
+		add(Const, constOp(1), rOne);
+		add(Compute, operator(Add), rStringPointer, rOne, rStringPointer);
+
+		freeReg(rStringPointer);
+		freeReg(rChar);
+		freeReg(rOne);
+		//--endbody-------------
+		
+		
+		add(Jump, abs(evalLine));
+		int nextEnterLine = program.size();
+		changeAt(branchLine, Branch, rContinue, abs(nextEnterLine));
+		add(Const, constOp(ASCII_NEWLINE), rStringPointer); //write newline always
+		add(Write, rStringPointer, MemAddr.StdIO);
+		freeReg(rTermChar);
+		return null;
+		
 	}
 	
 	@Override

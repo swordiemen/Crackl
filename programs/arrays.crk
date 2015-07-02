@@ -9,7 +9,6 @@ Program{
 		#boolean boolPtr => boolVal;
 		
 		int[3] c;
-		
 		arrA[2+1] = 7;
 		
 		b[2] = 1;
