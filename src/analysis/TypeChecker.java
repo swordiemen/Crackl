@@ -2,7 +2,6 @@ package analysis;
 
 import generation.Function;
 import grammar.CracklBaseListener;
-import grammar.CracklParser.AddExprContext;
 import grammar.CracklParser.AndExprContext;
 import grammar.CracklParser.ArrayAssignStatContext;
 import grammar.CracklParser.ArrayDeclContext;
@@ -23,9 +22,12 @@ import grammar.CracklParser.FuncDeclStatContext;
 import grammar.CracklParser.FuncExprContext;
 import grammar.CracklParser.IdExprContext;
 import grammar.CracklParser.IfStatContext;
+import grammar.CracklParser.LockDeclContext;
 import grammar.CracklParser.LockStatContext;
 import grammar.CracklParser.MainfuncContext;
 import grammar.CracklParser.NotExprContext;
+import grammar.CracklParser.NumOfSprockellContext;
+import grammar.CracklParser.OperatorExprContext;
 import grammar.CracklParser.OrExprContext;
 import grammar.CracklParser.ParExprContext;
 import grammar.CracklParser.ParamsContext;
@@ -38,6 +40,7 @@ import grammar.CracklParser.PtrDeclNormalContext;
 import grammar.CracklParser.PtrDerefExprContext;
 import grammar.CracklParser.PtrRefExprContext;
 import grammar.CracklParser.RetContext;
+import grammar.CracklParser.SprockellIdExprContext;
 import grammar.CracklParser.TypeContext;
 import grammar.CracklParser.UnlockStatContext;
 
@@ -495,9 +498,10 @@ public class TypeChecker extends CracklBaseListener {
 		}
 		result.addNode(ctx);
 	}
-
+	
 	@Override
-	public void exitAddExpr(AddExprContext ctx) {
+	public void exitOperatorExpr(OperatorExprContext ctx)
+	{
 		if(checkType(ctx.expr(0), Type.INT) && checkType(ctx.expr(1), Type.INT)){
 			types.put(ctx, Type.INT);
 			result.addType(ctx, Type.INT);
@@ -572,6 +576,27 @@ public class TypeChecker extends CracklBaseListener {
 			addError(ctx, ctx.ID().getText()+" is not a pointer.");
 		}
 	}
+	
+	@Override
+	public void exitLockDecl(LockDeclContext ctx)
+	{
+		String var = ctx.ID().getText();
+		Scope curScope = scopes.get(scopes.size()-1);
+		if(curScope.getPreviousScope() != null){
+			addError(ctx, String.format("Locks should not be created in inner scopes"));
+		}
+		if(curScope.getType(var) != null){
+			addError(ctx, String.format("Variable '%s' already declared in this scope!", var));
+		}else{
+			Type lhsType = Type.LOCK;
+				curScope.addInitVar(var);
+			types.put(ctx, lhsType);
+			curScope.put(var, lhsType, true); ///////Todo: maybe global?
+			result.addType(ctx, lhsType);
+			result.addNode(ctx);
+			result.addStaticGlobal(var);
+		}
+	}
 
 	@Override
 	public void exitPtrRefExpr(PtrRefExprContext ctx) {
@@ -583,20 +608,12 @@ public class TypeChecker extends CracklBaseListener {
 
 	@Override
 	public void exitLockStat(LockStatContext ctx) {
-		String var = ctx.ID().getText();
-		Type type = getTypeByString(var);
-		if(type == null){
-			addError(ctx, String.format("Variable '%s' has not yet been declared.",var));
-		}
+		checkType(ctx.expr(), Type.LOCK);
 	}
 
 	@Override
 	public void exitUnlockStat(UnlockStatContext ctx) {
-		String var = ctx.ID().getText();
-		Type type = getTypeByString(var);
-		if(type == null){
-			addError(ctx, String.format("Variable '%s' has not yet been declared.",var));
-		}
+		checkType(ctx.expr(), Type.LOCK);
 	}
 
 	@Override
@@ -710,6 +727,18 @@ public class TypeChecker extends CracklBaseListener {
 		return res;
 	}
 
+	@Override
+	public void exitSprockellIdExpr(SprockellIdExprContext ctx)
+	{
+		types.put(ctx, Type.INT);
+	}
+	
+	@Override
+	public void enterNumOfSprockell(NumOfSprockellContext ctx)
+	{
+		result.numberOfSprockells = Integer.parseInt(ctx.NUM().getText());
+	}
+	
 	/**
 	 * Checks if the type of <code>actual</code> is equal to <code>expected</code>. Adds an error (with Context <code>ctx</code>) to this Typechecker
 	 * if the types are not equal.

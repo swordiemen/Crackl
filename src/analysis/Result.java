@@ -1,5 +1,6 @@
 package analysis;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -11,6 +12,9 @@ public class Result {
 	private ParseTreeProperty<Type> types;
 	private ParseTreeProperty<Integer> offsets;
 	private ParseTreeProperty<Scope> scopes;
+	public int numberOfSprockells; //how many sprockells the program will run on
+	private HashMap<String, Integer> staticGlobals; //variables and offsets of variables such as locks, which should have a static position in global memory
+	public int numberOfStaticGlobals = 0;
 	
 	/**
 	 * Creates a new Result class.
@@ -20,6 +24,7 @@ public class Result {
 		types = new ParseTreeProperty<Type>();
 		offsets = new ParseTreeProperty<Integer>();
 		scopes = new ParseTreeProperty<Scope>();
+		staticGlobals = new HashMap<String, Integer>();
 	}
 	
 	/**
@@ -107,6 +112,10 @@ public class Result {
 		return offsets.get(ctx);
 	}
 	
+	public void addStaticGlobal(String var){
+		staticGlobals.put(var, numberOfStaticGlobals++);
+	}
+	
 	/**
 	 * Returns a type given a context.
 	 * @param ctx The context of which the type wants to be known.
@@ -114,5 +123,10 @@ public class Result {
 	 */
 	public Type getType(ParserRuleContext ctx){
 		return types.get(ctx);
+	}
+
+	public HashMap<String, Integer> getStaticGlobals()
+	{
+		return this.staticGlobals;
 	}
 }

@@ -1,10 +1,9 @@
 package generation;
 
 import static machine.Op.Instruction.*;
-import static machine.Op.Operator.Add;
+import static machine.Op.Operator.*;
 import static machine.Op.Register.*;
 import grammar.CracklBaseVisitor;
-import grammar.CracklParser.AddExprContext;
 import grammar.CracklParser.AndExprContext;
 import grammar.CracklParser.ArrayAssignStatContext;
 import grammar.CracklParser.ArrayDeclContext;
@@ -25,8 +24,11 @@ import grammar.CracklParser.FuncCallStatContext;
 import grammar.CracklParser.FuncDeclContext;
 import grammar.CracklParser.IdExprContext;
 import grammar.CracklParser.IfStatContext;
+import grammar.CracklParser.LockDeclContext;
+import grammar.CracklParser.LockStatContext;
 import grammar.CracklParser.MainFuncStatContext;
 import grammar.CracklParser.MainfuncContext;
+import grammar.CracklParser.OperatorExprContext;
 import grammar.CracklParser.OutExprStatContext;
 import grammar.CracklParser.PrintExprStatContext;
 import grammar.CracklParser.ProgramContext;
@@ -36,7 +38,9 @@ import grammar.CracklParser.PtrDeclNormalContext;
 import grammar.CracklParser.PtrDerefExprContext;
 import grammar.CracklParser.PtrRefExprContext;
 import grammar.CracklParser.RetContext;
+import grammar.CracklParser.SprockellIdExprContext;
 import grammar.CracklParser.StatContext;
+import grammar.CracklParser.UnlockStatContext;
 import grammar.CracklParser.WhileStatContext;
 
 import java.util.ArrayList;
@@ -101,6 +105,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		this.functionTable = functionTable;
 		freeRegisters.addAll(Op.gpRegisters);
 	}
+	
 
 	@Override
 	public Op visitFuncDecl(FuncDeclContext ctx)
@@ -108,7 +113,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		// func #funcStat
 		// func: FUNC retType ID LPAR params RPAR LCURL stat* ret RCURL;
 		Scope newScope = result.getScope(ctx);
-		doAssert(newScope.getScope() == this.currentScope);
+		doAssert(newScope.getPreviousScope() == this.currentScope);
 		this.currentScope = newScope;
 		debug("newScope: \n" + currentScope);
 
@@ -141,7 +146,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		freeReg(rReturnAddress);
 		freeReg(rReturnValue);
 
-		this.currentScope = this.currentScope.getScope();
+		this.currentScope = this.currentScope.getPreviousScope();
 
 		return null;
 	}
@@ -234,7 +239,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		// mainfunc: MAIN LCURL stat* RCURL;
 		debug(" MAIN BLOCK ! ");
 		Scope newScope = result.getScope(ctx);
-		doAssert(newScope.getScope() == this.currentScope);
+		doAssert(newScope.getPreviousScope() == this.currentScope);
 		this.currentScope = newScope;
 		debug("newScope: \n" + currentScope);
 
@@ -248,11 +253,11 @@ public class Generator extends CracklBaseVisitor<Op> {
 
 		Reg rPop = getFreeReg();
 		add(Const, constOp(toPop), rPop);
-		add(Compute, operator(Op.Operator.Add), reg(Op.Register.SP), rPop, reg(Op.Register.SP));
+		add(Compute, operator(Add), reg(Op.Register.SP), rPop, reg(Op.Register.SP));
 
 		freeReg(rPop);
-		currentScope = currentScope.getScope();
-		doAssert(currentScope.getScope() == null);
+		currentScope = currentScope.getPreviousScope();
+		doAssert(currentScope.getPreviousScope() == null);
 
 		add(EndProg); // make sure no 'random' code is executed
 		return null;
@@ -265,7 +270,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 	{
 		Reg r1 = getFreeReg();
 		add(Const, constOp(toPop), r1);
-		add(Compute, operator(Op.Operator.Add), reg(Op.Register.SP), r1, reg(Op.Register.SP));
+		add(Compute, operator(Add), reg(Op.Register.SP), r1, reg(Op.Register.SP));
 		freeReg(r1);
 	}
 
@@ -332,7 +337,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 				int totalOffset = currentScope.getStackOffset(variable);
 				totalOffset += pushedDuringFunctionCallSetup;
 				add(Const, constOp(totalOffset), rLoc);
-				add(Compute, operator(Operator.Add), reg(SP), rLoc, rLoc);
+				add(Compute, operator(Add), reg(SP), rLoc, rLoc);
 				// throw new IllegalArgumentException("No pointers to stack variables allowed!");
 			}
 			else {
@@ -391,7 +396,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		Reg rCmp = getFreeReg();
 		Reg rConst = getFreeReg();
 		add(Const, constOp(LOCAL_HEAP_SIZE), rConst);
-		add(Compute, operator(Operator.GtE), rLoc, rConst, rCmp);
+		add(Compute, operator(GtE), rLoc, rConst, rCmp);
 		int branchLine = addPlaceholder("deref branchLine");
 
 		// from local memory
@@ -428,7 +433,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		Reg rCmp = getFreeReg();
 		Reg rConst = getFreeReg();
 		add(Const, constOp(LOCAL_HEAP_SIZE), rConst);
-		add(Compute, operator(Operator.GtE), rLoc, rConst, rCmp);
+		add(Compute, operator(GtE), rLoc, rConst, rCmp);
 		int branchLine = addPlaceholder("deref branchLine");
 
 		// from local memory
@@ -463,7 +468,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 				int stackOffset = currentScope.getStackOffset(variable);
 				stackOffset+=pushedDuringFunctionCallSetup; //Edge-case where e.g. return address and parameters are already being pushed on the stack...
 				add(Const, constOp(stackOffset), rLoc);
-				add(Compute, operator(Operator.Add), reg(SP), rLoc, rLoc);
+				add(Compute, operator(Add), reg(SP), rLoc, rLoc);
 				add(Store, reg, deref(rLoc));
 				freeReg(rLoc);
 			}
@@ -493,7 +498,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 				int stackOffset = currentScope.getStackOffset(variable);
 				stackOffset+=pushedDuringFunctionCallSetup; //Edge-case where e.g. return address and parameters are already being pushed on the stack...
 				add(Const, constOp(stackOffset), rLoc);
-				add(Compute, operator(Operator.Add), reg(SP), rLoc, rLoc);
+				add(Compute, operator(Add), reg(SP), rLoc, rLoc);
 				add(Load, deref(rLoc), reg);
 				freeReg(rLoc);
 				return stackOffset;
@@ -543,7 +548,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		addSaveGlobalHeappointer(rArrayPointer);
 		//Decremen rArrayPointer again, because we want to 'return' the BASE address
 		add(Const, constOp(chars.length), rOne); 
-		add(Compute, operator(Operator.Sub), rArrayPointer, rOne, rArrayPointer);
+		add(Compute, operator(Sub), rArrayPointer, rOne, rArrayPointer);
 		pushReg(rArrayPointer);
 		freeReg(rOne);
 		return null;
@@ -563,7 +568,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		add(Const, constOp(STRING_TERMINATOR), rTermChar);
 		add(Read, deref(rStringPointer));
 		add(Receive, rChar);
-		add(Compute, operator(Operator.Equal), rChar, rTermChar, rContinue); // these can be optimized if \0 terminated
+		add(Compute, operator(Equal), rChar, rTermChar, rContinue); // these can be optimized if \0 terminated
 		freeReg(rContinue);
 		int branchLine = addPlaceholder("outBranch");
 
@@ -648,13 +653,12 @@ public class Generator extends CracklBaseVisitor<Op> {
 	{
 		visit(ctx.expr()); // write the to be allocated size to register
 		Reg rArraySize = popReg();
-		addAllocateArray(rArraySize, ctx.ID().getText());
+		addAllocateGlobal(rArraySize, ctx.ID().getText());
 		return null;
 	}
 
 	/**
 	 * Add instructions to retrieve the base address of some array, given a variable name Leaks a register!
-	 * 
 	 * @param variable
 	 * @return register containing the base address (on the heap) of an array
 	 */
@@ -673,7 +677,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 	 * @param rArraySize *            - Register containing the size of the array
 	 * @param variableName *            - Where (which variable) to store the array starting pointer
 	 */
-	private void addAllocateArray(Reg rArraySize, String variableName)
+	private void addAllocateGlobal(Reg rArraySize, String variableName)
 	{
 		// Retrieve heappointer
 		Reg rHeapPointer = addGetGlobalHeappointer();
@@ -681,12 +685,24 @@ public class Generator extends CracklBaseVisitor<Op> {
 		// Store current heappointer at at variable
 		addSave(variableName, rHeapPointer);
 
-		// MemoryLocation loc = currentScope.getMemLoc(variableName);
-		// add(Store, rHeapPointer, addr(loc.getScopeOffset(),
-		// loc.getVarOffset()));
-
 		// Increase and write back changed heappointer
-		addAllocateGlobal(rArraySize, rHeapPointer);
+		addIncrementHeappointer(rArraySize, rHeapPointer);
+	}
+
+	/**
+	 * Increments and writes back the heap pointer Note: it consumes two registers, both of which are free'd implicitly
+	 * 
+	 * @param rArraySize
+	 *            - Register containing the size of the array
+	 * @param rHeapPointer
+	 *            - Register containing the current end of the heap
+	 */
+	private void addIncrementHeappointer(Reg rArraySize, Reg rHeapPointer)
+	{
+		add(Compute, operator(Add), rArraySize, rHeapPointer, rHeapPointer);
+		add(Write, rHeapPointer, memAddr(MEMADDR_GLOBAL_HP));// maybe TODO: test and set?
+		freeReg(rArraySize);
+		freeReg(rHeapPointer);
 	}
 
 	/**
@@ -709,21 +725,6 @@ public class Generator extends CracklBaseVisitor<Op> {
 		return rHeapPointer;
 	}
 
-	/**
-	 * Increments and writes back the heap pointer Note: it consumes two registers, both of which are free'd implicitly
-	 * 
-	 * @param rArraySize
-	 *            - Register containing the size of the array
-	 * @param rHeapPointer
-	 *            - Register containing the current end of the heap
-	 */
-	private void addAllocateGlobal(Reg rArraySize, Reg rHeapPointer)
-	{
-		add(Compute, operator(Add), rArraySize, rHeapPointer, rHeapPointer);
-		add(Write, rHeapPointer, memAddr(MEMADDR_GLOBAL_HP));// maybe TODO: test and set?
-		freeReg(rArraySize);
-		freeReg(rHeapPointer);
-	}
 
 	@Override
 	public Op visitArrayAssignStat(ArrayAssignStatContext ctx)
@@ -775,7 +776,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 	{
 		visit(ctx.expr());
 		Reg r1 = popReg();
-		add(Compute, operator(Operator.Equal), r1, reg(Zero), r1);
+		add(Compute, operator(Equal), r1, reg(Zero), r1);
 		freeReg(r1); // TODO: Maybe free it AFTER some other operation
 		int branchLine = addPlaceholder();
 		if (ctx.ELSE() != null) {
@@ -804,7 +805,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		int evalLine = program.size();
 		visit(ctx.expr());
 		Reg continueReg = popReg();
-		add(Compute, operator(Operator.Equal), continueReg, reg(Zero), continueReg);
+		add(Compute, operator(Equal), continueReg, reg(Zero), continueReg);
 		freeReg(continueReg);
 		int branchLine = addPlaceholder("whileBranch");
 		visit(ctx.stat()); // body
@@ -815,17 +816,14 @@ public class Generator extends CracklBaseVisitor<Op> {
 	}
 
 	@Override
-	public Op visitAddExpr(AddExprContext ctx)
+	public Op visitOperatorExpr(OperatorExprContext ctx)
 	{
 		visit(ctx.expr(0));
 		visit(ctx.expr(1));
 		Reg r1 = popReg();
 		Reg r2 = popReg();
-		if(ctx.MINUS()!=null){
-			add(Compute, operator(Operator.Sub),r2 , r1, r1);
-		}else{
-			add(Compute, operator(Add), r1, r2, r1);
-		}
+		Operator operator = Op.getOperatorByString(ctx.OPERATOR().getText());
+		add(Compute, operator(operator),r2 , r1, r1);
 		freeReg(r2);
 		pushReg(r1);
 		return null;
@@ -897,6 +895,13 @@ public class Generator extends CracklBaseVisitor<Op> {
 	{
 		Reg reg = reg(regStack.pop());
 		return reg;
+	}
+	
+	@Override
+	public Op visitSprockellIdExpr(SprockellIdExprContext ctx)
+	{
+		pushReg(reg(Register.SPID));
+		return null;
 	}
 
 	private void freeReg(Reg r)
@@ -996,13 +1001,13 @@ public class Generator extends CracklBaseVisitor<Op> {
 	public Op visitBlockStat(BlockStatContext ctx)
 	{
 		Scope newScope = result.getScope(ctx);
-		doAssert(newScope.getScope() == this.currentScope);
+		doAssert(newScope.getPreviousScope() == this.currentScope);
 		this.currentScope = newScope;
 		debug("newScope: \n"+currentScope);
 
 		List<StatContext> stats = ctx.stat();
 
-		if (currentScope.getScope() != null) {
+		if (currentScope.getPreviousScope() != null) {
 			int toPop = addReserveForLocalVariables(stats);
 			for (StatContext child : stats) {
 				visit(child);
@@ -1014,7 +1019,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 				visit(child);
 			}
 		}
-		currentScope = currentScope.getScope();
+		currentScope = currentScope.getPreviousScope();
 		return null;
 	}
 
@@ -1044,10 +1049,55 @@ public class Generator extends CracklBaseVisitor<Op> {
 			System.out.println(s);
 		}
 	}
+	
+	@Override
+	public Op visitLockDecl(LockDeclContext ctx)
+	{
+		//Just zeroing the lock value and write the pointer to the variable
+		Reg rLockPointer = getFreeReg();
+		add(Const, constOp(result.getStaticGlobals().get(ctx.ID().getText())), rLockPointer);
+		add(Write,reg(Zero) ,deref(rLockPointer) );
+		addSave(ctx.ID().getText(), rLockPointer);
+		freeReg(rLockPointer);
+		return null;
+	}
+	
+	@Override
+	public Op visitLockStat(LockStatContext ctx)
+	{
+		visit(ctx.expr());
+		Reg rLockAddress = popReg();
+		Reg rIsLocked = getFreeReg();
+		int retryLine = program.size();
+		add(TestAndSet, deref(rLockAddress));
+		add(Receive, rIsLocked);
+		add(Compute, operator(Equal), reg(Zero), rIsLocked, rIsLocked);
+		add(Branch, rIsLocked, abs(retryLine));
+		freeReg(rLockAddress);
+		freeReg(rIsLocked);
+		return null;
+	}
 
+	@Override
+	public Op visitUnlockStat(UnlockStatContext ctx)
+	{
+		visit(ctx.expr());
+		Reg rLockAddress = popReg();
+		add(Write, reg(Zero), deref(rLockAddress));
+		freeReg(rLockAddress);
+		return null;
+	}
+	
 	@Override
 	public Op visitProgram(ProgramContext ctx)
 	{
+		//First reserve global heap space for static variables, e.g. locks should always be at the same location
+		int numberOfStaticGlobals = result.numberOfStaticGlobals;
+		Reg rHeappointer = addGetGlobalHeappointer();
+		Reg rStaticGlobals = getFreeReg();
+		add(Const, constOp(numberOfStaticGlobals), rStaticGlobals);
+		addIncrementHeappointer(rStaticGlobals, rHeappointer);
+		
 		List<ParseTree> unordered = new ArrayList<ParseTree>(ctx.stat().children);
 		List<ParseTree> reordered = new ArrayList<ParseTree>(unordered.size());
 		//REORDER: DECLARATIONS FIRST
@@ -1098,7 +1148,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		visit(ctx.expr(1));
 		Reg r1 = popReg();
 		Reg r2 = popReg();
-		add(Compute, operator(Add), r1, r2, r1);
+		add(Compute, operator(And), r1, r2, r1);
 		freeReg(r2);
 		pushReg(r1);
 		return null;

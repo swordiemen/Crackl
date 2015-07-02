@@ -25,6 +25,7 @@ public class Op {
 		Read,
 		Receive,
 		Write,
+		TestAndSet,
 
 		//DebugInstruction
 		Debug;
@@ -72,6 +73,17 @@ public class Op {
 		Xor,
 		LShift,
 		RShift
+	}
+	
+	public static Operator getOperatorByString(String operator){
+		switch(operator){
+			case "+": return Operator.Add;
+			case "-": return Operator.Sub;
+			case "%": return Operator.Mod;
+			case "/": return Operator.Div;
+			case "*": return Operator.Mul;
+			default: throw new IllegalArgumentException("No such operator: "+operator);
+		}
 	}
 
 }
