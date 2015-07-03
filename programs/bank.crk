@@ -42,6 +42,10 @@ Program(sprockells=2) {
 		}
 		
 		if(sid == 0){
+			//join()...
+			print(accounts[0]);
+			print(accounts[1]);
+		}else{
 			print(accounts[0]);
 			print(accounts[1]);
 		}
