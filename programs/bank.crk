@@ -1,0 +1,51 @@
+Program(sprockells=2) {
+
+	lock lockA;
+	global int[] accounts = [100, 25];
+	
+	func int transfer(int from, int to, int amount)
+	{
+		lock(lockA);
+		int left = accounts[from];
+		if(left >= amount){
+			accounts[from] = accounts[from] - amount;
+			accounts[to] = accounts[to] + amount;
+		}else{
+			print("Insufficient funds.");
+			print(from);
+			print(amount);
+		}
+		unlock(lockA);
+		return 0;
+	}
+
+	func int other(int sid){
+		int result = 0;
+		if(sid == 0){
+			result =  1;
+		}
+		else{
+			result =  0;
+		}
+		return result;
+	}
+
+	main {
+		int sid = getSprockellId();
+		int othersid = other(sid);
+		if(sid == 0){
+			transfer(sid, othersid,5);
+		}else{
+			transfer(sid, othersid,6);
+			transfer(sid, othersid,7);
+			transfer(sid, othersid,8);
+		}
+		
+		if(sid == 0){
+			print(accounts[0]);
+			print(accounts[1]);
+		}
+	}
+	
+	
+}

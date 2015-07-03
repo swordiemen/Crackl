@@ -1,0 +1,8 @@
+Program{
+
+	main{
+		print("hoi");
+		print(34);
+		print("hoi");
+	}
+}

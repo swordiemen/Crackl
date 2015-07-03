@@ -801,6 +801,12 @@ public class Generator extends CracklBaseVisitor<Op> {
 		else if (ctx.GT() != null) {
 			operator = Operator.Gt;
 		}
+		else if (ctx.GTE() != null) {
+			operator = Operator.GtE;
+		}
+		else if (ctx.LTE() != null) {
+			operator = Operator.LtE;
+		}
 		else {
 			throw new NullPointerException("Comparator not found");
 		}
