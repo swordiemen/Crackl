@@ -113,7 +113,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		// func #funcStat
 		// func: FUNC retType ID LPAR params RPAR LCURL stat* ret RCURL;
 		Scope newScope = result.getScope(ctx);
-		doAssert(newScope.getScope() == this.currentScope);
+		doAssert(newScope.getPreviousScope() == this.currentScope);
 		this.currentScope = newScope;
 		debug("newScope: \n" + currentScope);
 
@@ -146,7 +146,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		freeReg(rReturnAddress);
 		freeReg(rReturnValue);
 
-		this.currentScope = this.currentScope.getScope();
+		this.currentScope = this.currentScope.getPreviousScope();
 
 		return null;
 	}
@@ -239,7 +239,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		// mainfunc: MAIN LCURL stat* RCURL;
 		debug(" MAIN BLOCK ! ");
 		Scope newScope = result.getScope(ctx);
-		doAssert(newScope.getScope() == this.currentScope);
+		doAssert(newScope.getPreviousScope() == this.currentScope);
 		this.currentScope = newScope;
 		debug("newScope: \n" + currentScope);
 
@@ -256,8 +256,8 @@ public class Generator extends CracklBaseVisitor<Op> {
 		add(Compute, operator(Add), reg(Op.Register.SP), rPop, reg(Op.Register.SP));
 
 		freeReg(rPop);
-		currentScope = currentScope.getScope();
-		doAssert(currentScope.getScope() == null);
+		currentScope = currentScope.getPreviousScope();
+		doAssert(currentScope.getPreviousScope() == null);
 
 		add(EndProg); // make sure no 'random' code is executed
 		return null;
@@ -1049,13 +1049,13 @@ public class Generator extends CracklBaseVisitor<Op> {
 	public Op visitBlockStat(BlockStatContext ctx)
 	{
 		Scope newScope = result.getScope(ctx);
-		doAssert(newScope.getScope() == this.currentScope);
+		doAssert(newScope.getPreviousScope() == this.currentScope);
 		this.currentScope = newScope;
 		debug("newScope: \n"+currentScope);
 
 		List<StatContext> stats = ctx.stat();
 
-		if (currentScope.getScope() != null) {
+		if (currentScope.getPreviousScope() != null) {
 			int toPop = addReserveForLocalVariables(stats);
 			for (StatContext child : stats) {
 				visit(child);
@@ -1067,7 +1067,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 				visit(child);
 			}
 		}
-		currentScope = currentScope.getScope();
+		currentScope = currentScope.getPreviousScope();
 		return null;
 	}
 

@@ -105,7 +105,7 @@ public class MemoryLocation {
 
 	public boolean isOnStack()
 	{
-		return this.getScope().getScope() != null;
+		return this.getScope().getPreviousScope() != null;
 	}
 
 

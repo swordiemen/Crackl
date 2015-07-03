@@ -12,10 +12,10 @@ public class Type {
 	public Map<Types, Integer> sizeMap;
 	public static final Type BOOL = new Type(Types.Bool);
 	public static final Type INT = new Type(Types.Int);
-	public static final Type ERR = new Type(Types.Bool);
+	public static final Type ERR = new Type(Types.Err);
 	public static final Type VOID = new Type(Types.Void);
 	public static final Type TEXT = new Type(Types.Text);
-	public static final Type LOCK = new Type(Types.Lock);;
+	public static final Type LOCK = new Type(Types.Lock);
 
 	public Types type;
 
@@ -29,7 +29,9 @@ public class Type {
 	
 	/**
 	 * Returns a new Type object of this Type.
-	 * @return
+	 * @return 	<code>this</code> if this Type is not an array/pointer. 
+	 * 			Otherwise, it will return the type the pointer points to, 
+	 * 			or the types of the elements of the array.
 	 */
 	public Type getTypeObj(){
 		return this;
@@ -55,8 +57,6 @@ public class Type {
 		case Int:
 //			return Integer.SIZE/Byte.SIZE;
 			return 1;
-//		case Array:
-//			return array.getSize();
 		case Err:
 			return 0;
 		case Text:
@@ -131,7 +131,7 @@ public class Type {
 		case Int:
 			return "integer";
 		case Err:
-			return "Invalid type";
+			return "invalid type";
 		case Void:
 			return "void";
 		default:
