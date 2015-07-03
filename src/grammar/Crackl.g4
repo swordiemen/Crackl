@@ -19,10 +19,10 @@ stat: GLOBAL? type ID  (ASSIGN expr)? SEMI  		#decl
     | mainfunc										#mainFuncStat
     | funcDecl										#funcDeclStat
     | PRINT LPAR expr RPAR SEMI 					#printExprStat
-    | OUT LPAR expr RPAR SEMI 						#outExprStat
     | LOCK LPAR expr RPAR SEMI						#lockStat
     | UNLOCK LPAR expr RPAR	SEMI					#unlockStat
      ;
+
      
 numOfSprockell: (LPAR SPROCKELLCOUNT ASSIGN NUM RPAR);
     
@@ -49,7 +49,7 @@ expr: funcCall						#funcExpr
     | expr OPERATOR expr      #operatorExpr
     | expr AND expr                 #andExpr
     | expr OR  expr                 #orExpr
-    | expr (LT | GT | EQ | NE) expr #compExpr
+    | expr (LT | GT | EQ | NE | GTE | LTE) expr #compExpr
     | LPAR expr RPAR                #parExpr
     | DEREF ID						#ptrDerefExpr
     | REF ID						#ptrRefExpr
@@ -88,6 +88,8 @@ MULTIPLY: '*';
 DIVIDE: '/'; 
 AND: '&&';
 OR: '||';
+GTE: '>=';
+LTE: '<=';
 LT: '<';
 GT: '>';
 EQ: '==';
@@ -101,7 +103,6 @@ WHILE: 'while';
 ELSE: 'else';
 FOR: 'for';
 PRINT: 'print';
-OUT: 'out';
 COMMA: ',';
 VOID: 'void';
 GLOBAL: 'global';

@@ -29,7 +29,6 @@ import grammar.CracklParser.LockStatContext;
 import grammar.CracklParser.MainFuncStatContext;
 import grammar.CracklParser.MainfuncContext;
 import grammar.CracklParser.OperatorExprContext;
-import grammar.CracklParser.OutExprStatContext;
 import grammar.CracklParser.PrintExprStatContext;
 import grammar.CracklParser.ProgramContext;
 import grammar.CracklParser.PtrAssignContext;
@@ -64,11 +63,12 @@ import org.antlr.v4.runtime.tree.ParseTree;
 import analysis.MemoryLocation;
 import analysis.Result;
 import analysis.Scope;
+import analysis.Type;
 
 public class Generator extends CracklBaseVisitor<Op> {
 
-	public static final boolean DEBUG_OTHER = true;
-	public static final boolean DEBUG_REG = true;
+	public static final boolean DEBUG_OTHER = false;
+	public static final boolean DEBUG_REG = false;
 
 	public ArrayList<Line> program = new ArrayList<Line>();
 	
@@ -555,50 +555,6 @@ public class Generator extends CracklBaseVisitor<Op> {
 	}
 	
 	@Override
-	public Op visitOutExprStat(OutExprStatContext ctx)
-	{
-		visit(ctx.expr());
-		Reg rStringPointer = popReg();
-
-		int evalLine = program.size();
-
-		Reg rChar = getFreeReg();
-		Reg rContinue = getFreeReg();
-		Reg rTermChar = getFreeReg();
-		add(Const, constOp(STRING_TERMINATOR), rTermChar);
-		add(Read, deref(rStringPointer));
-		add(Receive, rChar);
-		add(Compute, operator(Equal), rChar, rTermChar, rContinue); // these can be optimized if \0 terminated
-		freeReg(rContinue);
-		int branchLine = addPlaceholder("outBranch");
-
-		// --startbody-------------
-		int ASCII_NEWLINE = (int) '\n';
-
-		add(Write, rChar, MemAddr.StdIO); // write char
-
-		// increment pointer
-		Reg rOne = getFreeReg();
-		add(Const, constOp(1), rOne);
-		add(Compute, operator(Add), rStringPointer, rOne, rStringPointer);
-
-		freeReg(rStringPointer);
-		freeReg(rChar);
-		freeReg(rOne);
-		//--endbody-------------
-		
-		
-		add(Jump, abs(evalLine));
-		int nextEnterLine = program.size();
-		changeAt(branchLine, Branch, rContinue, abs(nextEnterLine));
-		add(Const, constOp(ASCII_NEWLINE), rStringPointer); //write newline always
-		add(Write, rStringPointer, MemAddr.StdIO);
-		freeReg(rTermChar);
-		return null;
-		
-	}
-	
-	@Override
 	public Op visitArrayExpr(ArrayExprContext ctx)
 	{
 		Reg rArrayPointer = addGetGlobalHeappointer();
@@ -845,6 +801,12 @@ public class Generator extends CracklBaseVisitor<Op> {
 		else if (ctx.GT() != null) {
 			operator = Operator.Gt;
 		}
+		else if (ctx.GTE() != null) {
+			operator = Operator.GtE;
+		}
+		else if (ctx.LTE() != null) {
+			operator = Operator.LtE;
+		}
 		else {
 			throw new NullPointerException("Comparator not found");
 		}
@@ -982,20 +944,106 @@ public class Generator extends CracklBaseVisitor<Op> {
 	@Override
 	public Op visitPrintExprStat(PrintExprStatContext ctx)
 	{
-		int NUM_OFFSET_ASCII = 48;
-		int ASCII_NEWLINE = (int)'\n';
-		visit(ctx.expr());
-		Reg r1 = popReg();
-		Reg r2 = getFreeReg();
-		add(Const, constOp("" + NUM_OFFSET_ASCII), r2);
-		add(Compute, operator(Add), r1, r2, r1);
-		add(Write, r1, MemAddr.StdIO);
-		add(Const, constOp(ASCII_NEWLINE), r1);
-		add(Write, r1, MemAddr.StdIO);
-		freeReg(r2);
-		freeReg(r1);
+			int ASCII_NEWLINE = (int) '\n';
+			int NUM_OFFSET_ASCII = 48;
+		//Print string or Number
+		if (result.getType(ctx.expr()) == Type.TEXT) {
+			//PRINT STRING
+			visit(ctx.expr());
+			Reg rStringPointer = popReg();
+
+			int evalLine = program.size();
+
+			Reg rChar = getFreeReg();
+			Reg rContinue = getFreeReg();
+			Reg rTermChar = getFreeReg();
+			add(Const, constOp(STRING_TERMINATOR), rTermChar);
+			add(Read, deref(rStringPointer));
+			add(Receive, rChar);
+			add(Compute, operator(Equal), rChar, rTermChar, rContinue); // these can be optimized if \0 terminated
+			freeReg(rContinue);
+			int branchLine = addPlaceholder("outBranch");
+
+			// --startbody-------------
+
+			add(Write, rChar, MemAddr.StdIO); // write char
+
+			// increment pointer
+			Reg rOne = getFreeReg();
+			add(Const, constOp(1), rOne);
+			add(Compute, operator(Add), rStringPointer, rOne, rStringPointer);
+
+			freeReg(rStringPointer);
+			freeReg(rChar);
+			freeReg(rOne);
+			// --endbody-------------
+
+			add(Jump, abs(evalLine));
+			int nextEnterLine = program.size();
+			changeAt(branchLine, Branch, rContinue, abs(nextEnterLine));
+			freeReg(rTermChar);
+		}
+		else {
+			//PRINT NUMBER
+			visit(ctx.expr());
+			Reg rNum = popReg();
+			Reg rRest = getFreeReg();
+
+			//First find 'length' of number
+			Reg rDiv = getFreeReg();
+			Reg rRetry = getFreeReg();
+			Reg rTen = getFreeReg();
+			add(Const, constOp(10), rTen);
+
+			//dowhile(rNum `div` rDiv > 10)
+			add(Const, constOp(1), rDiv);
+			int retryFindMaxLine = program.size();
+			add(Compute, operator(Div), rNum, rDiv, rRest);
+			add(Compute, operator(GtE), rRest, rTen, rRetry); 
+			add(Compute, operator(Mul),rDiv, rTen, rDiv);
+			add(Branch, rRetry, abs(retryFindMaxLine));
+
+			freeReg(rRest);
+			freeReg(rRetry);
+			rRetry = rTen;
+
+			Reg rNumOffset = getFreeReg();
+			add(Const, constOp(NUM_OFFSET_ASCII), rNumOffset);
+			Reg rChar = getFreeReg();
+
+			//dowhile(rDiv > 10): print head(tail (number))
+			int continuePrintingLine = program.size();
+			// --startbody-------------
+			add(Const, constOp(10), rTen);
+			add(Compute, operator(Div), rDiv, rTen, rDiv); 
+			add(Compute, operator(Div), rNum, rDiv, rChar); //remove tail
+			add(Compute, operator(Mod), rChar, rTen, rChar); //get head
+
+			add(Compute, operator(Add), rChar, rNumOffset, rChar);
+			add(Write, rChar, MemAddr.StdIO); // write char
+			// --endbody-------------
+
+			add(Compute, operator(GtE), rDiv, rTen, rTen); 
+			add(Branch, rTen, abs(continuePrintingLine));
+			freeReg(rNum);
+			freeReg(rDiv);
+			freeReg(rTen);
+			freeReg(rChar);
+			freeReg(rNumOffset);
+		}
+		Reg rNewline = getFreeReg();
+		add(Const, constOp(ASCII_NEWLINE), rNewline);
+		add(Write, rNewline, MemAddr.StdIO);
+		freeReg(rNewline);
 		return null;
 	}
+
+	private void copyReg(Reg rNum, Reg rRest)
+	{
+		add(Push, rNum);
+		add(Pop, rRest);
+	}
+
 
 	@Override
 	public Op visitBlockStat(BlockStatContext ctx)

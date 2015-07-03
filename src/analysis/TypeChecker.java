@@ -199,7 +199,7 @@ public class TypeChecker extends CracklBaseListener {
 	@Override
 	public void exitPrintExprStat(PrintExprStatContext ctx)
 	{
-		String res = ctx.expr().getText();
+		types.put(ctx, getType(ctx.expr()));
 	}
 
 	@Override

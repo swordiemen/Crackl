@@ -12,7 +12,7 @@ public class Result {
 	private ParseTreeProperty<Type> types;
 	private ParseTreeProperty<Integer> offsets;
 	private ParseTreeProperty<Scope> scopes;
-	public int numberOfSprockells; //how many sprockells the program will run on
+	public int numberOfSprockells = 1; //how many sprockells the program will run on (default: 1)
 	private HashMap<String, Integer> staticGlobals; //variables and offsets of variables such as locks, which should have a static position in global memory
 	public int numberOfStaticGlobals = 0;
 	

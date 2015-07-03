@@ -14,7 +14,6 @@ Program {
 		print(@mut_ptr_ptr);
 		print(@mut_ptr_ptr_deref);
 		
-		
 		//Yay!//
 	}
 }

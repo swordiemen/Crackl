@@ -1,7 +1,16 @@
 Program{
 
+<<<<<<< HEAD
 	main {
 		print("hey");
 	}
 
 }
+=======
+	main{
+		print("hoi");
+		print(34);
+		print("hoi");
+	}
+}
+>>>>>>> origin/master

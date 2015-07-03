@@ -12,6 +12,7 @@ Program(sprockells=20) {
 			sharedValue = sharedValue + 1;
 			i = i + 1;
 		}
+		print("HOI");
 		print(sharedValue);
 		unlock(lockA);
 	}
