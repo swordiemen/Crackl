@@ -1,0 +1,7 @@
+Program{
+
+	main {
+		print("hey");
+	}
+
+}

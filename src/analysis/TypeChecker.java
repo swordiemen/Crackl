@@ -14,6 +14,7 @@ import grammar.CracklParser.BlockStatContext;
 import grammar.CracklParser.CompExprContext;
 import grammar.CracklParser.ConstBoolExprContext;
 import grammar.CracklParser.ConstNumExprContext;
+import grammar.CracklParser.ConstTextExprContext;
 //import grammar.CracklParser.ConstTextExprContext;
 import grammar.CracklParser.DeclContext;
 import grammar.CracklParser.FuncCallContext;
@@ -98,7 +99,6 @@ public class TypeChecker extends CracklBaseListener {
 			newScope.addInitVar(var);
 			result.addType(ctx, type);
 			result.addOffset(ctx, newScope.getOffset(var));
-			System.out.println(newScope.getBaseAddress());
 			result.addNode(ctx);
 			
 			currentFunction.params.add(var);
@@ -164,7 +164,6 @@ public class TypeChecker extends CracklBaseListener {
 	@Override
 	public void exitAssignStat(AssignStatContext ctx)
 	{
-		System.out.println(ctx.getText());
 		Scope curScope = scopes.get(scopes.size()-1);
 		Type lhsType = getType(ctx.target());
 		checkType(ctx.expr(), lhsType);
@@ -201,7 +200,6 @@ public class TypeChecker extends CracklBaseListener {
 	public void exitPrintExprStat(PrintExprStatContext ctx)
 	{
 		String res = ctx.expr().getText();
-		System.out.println(res);
 	}
 
 	@Override
@@ -455,14 +453,14 @@ public class TypeChecker extends CracklBaseListener {
 		}else{
 			//			result.addScope(ctx, scopes.get(0));	//there should be only 1 scope left, namely the global scope.
 			//			result.addNode(ctx);
-			System.out.println("Build succeeded without typecheck errors.");
-			for(ParserRuleContext prc : result.getNodes()){
-				//System.out.println("----------------" + prc.getText() + "----------------");
-				Type type = types.get(prc);
-				System.out.println(type);
-				if(type instanceof Array){
-				}
-			}
+//			System.out.println("Build succeeded without typecheck errors.");
+//			for(ParserRuleContext prc : result.getNodes()){
+//				//System.out.println("----------------" + prc.getText() + "----------------");
+//				Type type = types.get(prc);
+//				System.out.println(type);
+//				if(type instanceof Array){
+//				}
+//			}
 			//			for(ParserRuleContext prc : result.getNodes()){		// testing 
 			//				System.out.println("----------------" + prc.getText() + "----------------");
 			//				if(result.getTypes().get(prc) != null){
@@ -659,13 +657,13 @@ public class TypeChecker extends CracklBaseListener {
 		result.addNode(ctx);
 	}
 
-//	@Override
-//	public void exitConstTextExpr(ConstTextExprContext ctx)
-//	{
-//		types.put(ctx, Type.TEXT);
-//		result.addType(ctx, Type.TEXT);
-//		result.addNode(ctx);
-//	}
+	@Override
+	public void exitConstTextExpr(ConstTextExprContext ctx)
+	{
+		types.put(ctx, Type.TEXT);
+		result.addType(ctx, Type.TEXT);
+		result.addNode(ctx);
+	}
 
 	@Override
 	public void exitConstNumExpr(ConstNumExprContext ctx) {

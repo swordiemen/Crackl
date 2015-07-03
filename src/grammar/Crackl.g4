@@ -20,8 +20,8 @@ stat: GLOBAL? type ID  (ASSIGN expr)? SEMI  		#decl
     | funcDecl										#funcDeclStat
     | PRINT LPAR expr RPAR SEMI 					#printExprStat
     | OUT LPAR expr RPAR SEMI 						#outExprStat
-    | LOCK LPAR expr RPAR							#lockStat
-    | UNLOCK LPAR expr RPAR							#unlockStat
+    | LOCK LPAR expr RPAR SEMI						#lockStat
+    | UNLOCK LPAR expr RPAR	SEMI					#unlockStat
      ;
      
 numOfSprockell: (LPAR SPROCKELLCOUNT ASSIGN NUM RPAR);

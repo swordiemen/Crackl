@@ -75,3 +75,5 @@ src/grammar/Crackl.tokens
 machine/compile_sprockell.bat
 machine/crk_program.hs
 *.exe
+programs/parsefail.crk
+programs/while.crk

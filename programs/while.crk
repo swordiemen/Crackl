@@ -1,16 +1,19 @@
 Program {
-	int a = 0;
-	boolean boolVal = false;
-	while(a<1){
+	main{
+		print("hey");
+		int a = 0;
+		boolean boolVal = false;
+		while(a<1){
+			print(a);
+			a = a+1;
+		}
+		
 		print(a);
-		a = a+1;
-	}
 	
-	print(a);
-
-	while(false)
-	{
-		int b = 9;
-		print(b);
+		while(false)
+		{
+			int b = 9;
+			print(b);
+		}
 	}
 }

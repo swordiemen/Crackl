@@ -6,7 +6,10 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
+import org.antlr.v4.runtime.ANTLRErrorListener;
+import org.antlr.v4.runtime.ANTLRErrorStrategy;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -15,6 +18,7 @@ import org.antlr.v4.runtime.TokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 
+import analysis.ParseErrorListener;
 import analysis.Result;
 import analysis.TypeChecker;
 import exception.TypeCheckException;
@@ -30,12 +34,14 @@ public class Compiler {
 	public static final String OUTPUT_PATH = "./machine/";
 
 	private TypeChecker checker;
+	ParseErrorListener errorListener;
 
 	/**
 	 * Creates a new Compiler class.
 	 */
 	public Compiler() {
 		checker = new TypeChecker();
+		errorListener = new ParseErrorListener();
 	}
 
 	/**
@@ -49,9 +55,15 @@ public class Compiler {
 	public Program compile(String fileName) throws TypeCheckException
 	{
 		ParseTree tree = parse(fileName);
-		System.out.println(tree);
 		ParseTreeWalker walker = new ParseTreeWalker();
 		walker.walk(checker, tree);
+		if(errorListener.hasErrors()){
+			List<String> errors = errorListener.getErrors();
+			for (String error : errors) {
+				System.out.println("Error: " + error);
+			}
+			throw new TypeCheckException("File " + fileName + " has not been parsed correctly.");
+		}
 		if (!checker.hasErrors()) {
 			Result result = checker.getResult();
 
@@ -64,11 +76,9 @@ public class Compiler {
 			}
 			ArrayList<Line> programLines = generator.program;
 			Program program = new Program(programLines, result.numberOfSprockells);
-			System.out.println(program);
 			return program;
 		}
 		else {
-			System.out.println(checker.getErrors());
 			throw new TypeCheckException("Build failed (TypeChecker)");
 		}
 	}
@@ -79,8 +89,9 @@ public class Compiler {
 	 * @param fileName
 	 *            Name of the file to be parsed.
 	 * @return <b>parseTree</b> The resulting parseTree.
+	 * @throws TypeCheckException 
 	 */
-	public ParseTree parse(String fileName)
+	public ParseTree parse(String fileName) //throws TypeCheckException
 	{
 		CharStream chars = null;
 		try {
@@ -91,7 +102,11 @@ public class Compiler {
 		Lexer lexer = new CracklLexer(chars);
 		TokenStream tokens = new CommonTokenStream(lexer);
 		CracklParser parser = new CracklParser(tokens);
+		parser.addErrorListener(errorListener);
 		ProgramContext tree = parser.program();
+		//		if(errorListener.hasErrors()){
+		//			throw new TypeCheckException("Parsing file " + fileName + " has failed.");
+		//		}
 		return tree;
 	}
 
@@ -120,14 +135,9 @@ public class Compiler {
 	{
 		Compiler compiler = new Compiler();
 		try {
-			String program_name = "locks.crk";
+			String program_name = "testje.crk";
 			Program program = compiler.compile(program_name);
-			if (false) {
-				compiler.write(program_name + ".hs", program);
-			}
-			else {
-				compiler.write("crk_program.hs", program);
-			}
+			compiler.write("crk_program.hs", program);
 		} catch (IOException e) {
 			e.printStackTrace();
 		} catch (TypeCheckException e1) {
