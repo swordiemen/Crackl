@@ -120,7 +120,7 @@ public class Compiler {
 	{
 		Compiler compiler = new Compiler();
 		try {
-			String program_name = "bank.crk";
+			String program_name = "pointers2.crk";
 			Program program = compiler.compile(program_name);
 			if (false) {
 				compiler.write(program_name + ".hs", program);

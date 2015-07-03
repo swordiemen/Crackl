@@ -14,6 +14,7 @@ import grammar.CracklParser.BlockStatContext;
 import grammar.CracklParser.CompExprContext;
 import grammar.CracklParser.ConstBoolExprContext;
 import grammar.CracklParser.ConstNumExprContext;
+import grammar.CracklParser.ConstTextExprContext;
 //import grammar.CracklParser.ConstTextExprContext;
 import grammar.CracklParser.DeclContext;
 import grammar.CracklParser.FuncCallContext;
@@ -658,13 +659,13 @@ public class TypeChecker extends CracklBaseListener {
 		result.addNode(ctx);
 	}
 
-//	@Override
-//	public void exitConstTextExpr(ConstTextExprContext ctx)
-//	{
-//		types.put(ctx, Type.TEXT);
-//		result.addType(ctx, Type.TEXT);
-//		result.addNode(ctx);
-//	}
+	@Override
+	public void exitConstTextExpr(ConstTextExprContext ctx)
+	{
+		types.put(ctx, Type.TEXT);
+		result.addType(ctx, Type.TEXT);
+		result.addNode(ctx);
+	}
 
 	@Override
 	public void exitConstNumExpr(ConstNumExprContext ctx) {

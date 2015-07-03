@@ -25,8 +25,8 @@ public class CracklTest {
 
 	@Test
 	public void testStandardFunctions(){
-		String[] ee = {};
-		compare("functions_rec.crk", ee);
+		String[] ee = {"0", "1", "1", "2", "3", "5", "8", "13", "21", "34", "55", "89", "144"};
+		compare("fibonacci.crk", ee);
 		fails("testje.crk", "not initialized");
 	}
 
@@ -44,8 +44,20 @@ public class CracklTest {
 			e.printStackTrace();
 		}
 		if(!eq(expected, actual)){
-			fail("Expected " + expected + ", got " + actual + ".");
+			fail(String.format("Expected %s, got %s.\n", arrayToString(expected),actual ));
 		}
+	}
+	
+	
+	public String arrayToString(String[] strings){
+			StringBuilder sb = new StringBuilder();
+			sb.append("[");
+			for(int i = 0; i< strings.length; i++){
+				sb.append(strings[i]);
+				sb.append(" ");
+			}
+			sb.append("]");
+			return sb.toString();
 	}
 
 	/**
@@ -168,15 +180,29 @@ public class CracklTest {
 	 * @throws IOException
 	 */
 	public ArrayList<String> getOutput() throws IOException{
+		final String os = System.getProperty("os.name");
+		System.out.println("Build target: "+os);
+
+		String outputFile = "machine/crk_program";
+		String ghc = "ghc";
+		if(os.startsWith("Windows")){
+			outputFile+=".exe";
+		}else if(os.equals("Linux")){
+			ghc = "/opt/ghc/7.8.4/bin/ghc";
+			System.out.println("Warning: using an absolute path for ghc: "+ghc);
+		}
+
 		Runtime rt = Runtime.getRuntime();
-		Process p = rt.exec("ghc -imachine/sprockell/src machine/crk_program.hs");
+
+		Process p = rt.exec(ghc+" -imachine/sprockell/src machine/crk_program.hs");
 		try {
 			p.waitFor();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 
-		Process p2 = rt.exec("machine/crk_program.exe");
+		System.out.println("Writing executable: "+outputFile);
+		Process p2 = rt.exec(outputFile);
 
 		try {
 			p2.waitFor();
@@ -188,7 +214,7 @@ public class CracklTest {
 		ArrayList<String> output = new ArrayList<String>();
 		Scanner s = new Scanner(is);
 		while(s.hasNext()){
-			output.add(s.next());
+			output.add(s.nextLine());
 		}
 		s.close();
 		return output;

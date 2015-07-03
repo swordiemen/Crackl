@@ -1,5 +1,7 @@
 Program {
 
+	//This program prints all fibonacci numbers upto fib(13) (bounded because of tests)
+
 	func int fib(int n)
 	{
 		int result = 0;
@@ -16,7 +18,7 @@ Program {
 
 	main {
 		int number = 0;
-		while(number < 18){
+		while(number < 13){
 			print(fib(number));
 			number = number + 1;
 		}
