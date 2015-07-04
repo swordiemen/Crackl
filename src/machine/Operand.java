@@ -59,7 +59,11 @@ public class Operand {
 		@Override
 		public String toString()
 		{
+			if(!(this instanceof Ind) && Integer.parseInt(this.name) < 0){
+			return String.format("(%s (%s))", this.type, this.name);
+			}else{
 			return String.format("(%s %s)", this.type, this.name);
+			}
 		}
 
 		public static class Abs extends Target {

@@ -56,7 +56,6 @@ import org.antlr.v4.runtime.tree.ParseTreeProperty;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
 public class TypeChecker extends CracklBaseListener {
-
 	public static final String VOIDSTRING = "void";
 	
 	public static final String FUNC_NOT_IN_TOP_LEVEL_ERROR = "Functions can only be made in the top level scope.";
@@ -611,6 +610,7 @@ public class TypeChecker extends CracklBaseListener {
 		result.addType(ctx, type);
 	}
 
+	/**
 	@Override
 	public void exitLockStat(LockStatContext ctx) {
 		checkType(ctx.expr(), Type.LOCK);
@@ -620,6 +620,7 @@ public class TypeChecker extends CracklBaseListener {
 	public void exitUnlockStat(UnlockStatContext ctx) {
 		checkType(ctx.expr(), Type.LOCK);
 	}
+	**/
 
 	@Override
 	public void exitParams(ParamsContext ctx) {

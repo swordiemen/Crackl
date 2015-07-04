@@ -40,26 +40,99 @@ public class CracklTest {
 		System.setErr(new PrintStream(out));
 	}
 
-	//@Test
-	public void testStandardFunctions(){
-		String[] ee = {"0", "1", "1", "2", "3", "5", "8", "13", "21", "34", "55", "89", "144"};
+	@Test(timeout = 20 * 1000)
+	public void testStandardFunctions()
+	{
+		String[] ee = { "0", "1", "1", "2", "3", "5", "8", "13", "21", "34", "55", "89", "144" };
 		compare("fibonacci.crk", ee);
+	}
+
+	@Test(timeout = 10 * 1000)
+	public void testTestje()
+	{
 		fails("testje.crk", "not initialized");
+	}
+
+	@Test(timeout = 10 * 1000)
+	public void testParsefail()
+	{
 		fails("parsefail.crk");
+	}
+
+	@Test(timeout = 10 * 1000)
+	public void testArrays()
+	{
 		succeeds("arrays.crk");
+	}
+
+	@Test(timeout = 10 * 1000)
+	public void testFibonacci()
+	{
 		succeeds("fibonacci.crk");
+	}
+
+	@Test(timeout = 10 * 1000)
+	public void testFunctions()
+	{
 		succeeds("functions.crk");
+	}
+
+	@Test(timeout = 10 * 1000)
+	public void testIfelse()
+	{
 		succeeds("ifelse.crk");
+	}
+
+	@Test(timeout = 10 * 1000)
+	public void testLocks()
+	{
 		succeeds("locks.crk");
+	}
+
+	@Test(timeout = 10 * 1000)
+	public void testNestedwhile()
+	{
 		succeeds("nestedwhile.crk");
+	}
+
+	@Test(timeout = 10 * 1000)
+	public void testPeterson()
+	{
 		succeeds("peterson.crk");
+		compare("peterson.crk", new String[]{"20"});
+	}
+
+	@Test(timeout = 10 * 1000)
+	public void testPointers()
+	{
 		succeeds("pointers.crk");
+	}
+
+	@Test(timeout = 10 * 1000)
+	public void testPointers2()
+	{
 		succeeds("pointers2.crk");
+	}
+
+	@Test(timeout = 10 * 1000)
+	public void testStrings()
+	{
 		succeeds("strings.crk");
+		compare("strings.crk", new String[]{"===========", "hello world","===========", "hello world","===========", "hello world",});
+	}
+
+	@Test(timeout = 10 * 1000)
+	public void testWhile()
+	{
 		succeeds("while.crk");
-		String[] whileArr = {"hey","0","1"};
-		compare("while.crk", whileArr);
-		compare("print.crk", new String[]{"hey"});
+		String[] whileArr = { "0", "1" };
+		// compare("while.crk", whileArr);
+	}
+
+	@Test(timeout = 10 * 1000)
+	public void testPrint()
+	{
+		compare("print.crk", new String[] { "Hello world!", "42" });
 	}
 	
 	@Test

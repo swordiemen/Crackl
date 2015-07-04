@@ -25,6 +25,10 @@ public class Result {
 		offsets = new ParseTreeProperty<Integer>();
 		scopes = new ParseTreeProperty<Scope>();
 		staticGlobals = new HashMap<String, Integer>();
+
+		addStaticGlobal("threadsReleasedJump"); //instruction where the sprockells will jump to. While this is 0 they will wait.
+		addStaticGlobal("unjoinedThreads"); //how many threads haven't reached join() yet
+		addStaticGlobal("unjoinedThreadsLock"); //lock on the 'unjoinedTheads' counter
 	}
 	
 	/**

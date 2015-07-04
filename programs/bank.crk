@@ -31,8 +31,17 @@ Program(sprockells=2) {
 	}
 
 	main {
+		print("Printed once");
+		releaseSprockells();
+		
 		int sid = getSprockellId();
 		int othersid = other(sid);
+		
+		lock(lockA);
+		print("released");
+		print(sid);
+		unlock(lockA);
+
 		if(sid == 0){
 			transfer(sid, othersid,5);
 		}else{
@@ -41,14 +50,10 @@ Program(sprockells=2) {
 			transfer(sid, othersid,8);
 		}
 		
-		if(sid == 0){
-			//join()...
-			print(accounts[0]);
-			print(accounts[1]);
-		}else{
-			print(accounts[0]);
-			print(accounts[1]);
-		}
+		joinSprockells();
+		
+		print(accounts[0]);
+		print(accounts[1]);
 	}
 	
 	

@@ -19,11 +19,13 @@ import grammar.CracklParser.ConstNumExprContext;
 import grammar.CracklParser.ConstTextExprContext;
 import grammar.CracklParser.DeclContext;
 import grammar.CracklParser.ExprContext;
+import grammar.CracklParser.ForkStatContext;
 import grammar.CracklParser.FuncCallContext;
 import grammar.CracklParser.FuncCallStatContext;
 import grammar.CracklParser.FuncDeclContext;
 import grammar.CracklParser.IdExprContext;
 import grammar.CracklParser.IfStatContext;
+import grammar.CracklParser.JoinStatContext;
 import grammar.CracklParser.LockDeclContext;
 import grammar.CracklParser.LockStatContext;
 import grammar.CracklParser.MainFuncStatContext;
@@ -82,6 +84,8 @@ public class Generator extends CracklBaseVisitor<Op> {
 	/**Edge-case where e.g. return address and parameters are already being pushed on the stack.
 	 * It indicates how many spaces to skip *additionally* **/
 	private int pushedDuringFunctionCallSetup = 0;
+
+	private int branchJoinEndprog = -1;
 
 	public static final int STACK_SIZE = 128;
 	public static final int STACK_START = 0; //ehh...
@@ -237,14 +241,44 @@ public class Generator extends CracklBaseVisitor<Op> {
 	public Op visitMainfunc(MainfuncContext ctx)
 	{
 		// mainfunc: MAIN LCURL stat* RCURL;
-		debug(" MAIN BLOCK ! ");
 		Scope newScope = result.getScope(ctx);
 		doAssert(newScope.getPreviousScope() == this.currentScope);
 		this.currentScope = newScope;
 		debug("newScope: \n" + currentScope);
+		
+		//All threads except spid=0 should wait
+		if(result.numberOfSprockells>1){
+			Reg rIsNotMain = getFreeReg();
+			Reg rJumpToRelease = getFreeReg();
+			Reg rRetry = rIsNotMain;
+			add(Compute, operator(Equal), reg(SPID), reg(Zero), rIsNotMain);
+			int jumpToMainLine = addPlaceholder("Jump to main");
+
+			int retryLine = program.size();
+			add(Read, memAddr(result.getStaticGlobals().get("threadsReleasedJump")));
+			add(Receive, rJumpToRelease);
+			add(Compute, operator(Equal), rJumpToRelease, reg(Zero), rRetry);
+			add(Branch, rRetry, abs(retryLine));
+			add(Jump, ind(rJumpToRelease));
+
+			int mainLine = program.size();
+			changeAt(jumpToMainLine, Branch, rIsNotMain, abs(mainLine));
+
+			// Write number of sprockells to join --TODO: make sure this part only gets executed by spid=0!
+			int unjoinedThreadsAddr = result.getStaticGlobals().get("unjoinedThreads");
+			int unjoinedThreadsLockAddr = result.getStaticGlobals().get("unjoinedThreadsLock");
+			Reg rUnjoinedThreads = getFreeReg();
+			add(Const, constOp(result.numberOfSprockells), rUnjoinedThreads);
+			addObtainLock("unjoinedThreadsLock");
+			add(Write, rUnjoinedThreads, memAddr(unjoinedThreadsAddr));
+			addReleaseLock("unjoinedThreadsLock");
+
+			freeReg(rJumpToRelease);
+		freeReg(rRetry);
+		freeReg(rUnjoinedThreads);
+		}
 
 		List<StatContext> stats = ctx.stat();
-
 		int toPop = addReserveForLocalVariables(stats);
 
 		for (StatContext child : stats) {
@@ -647,11 +681,8 @@ public class Generator extends CracklBaseVisitor<Op> {
 
 	/**
 	 * Increments and writes back the heap pointer Note: it consumes two registers, both of which are free'd implicitly
-	 * 
-	 * @param rArraySize
-	 *            - Register containing the size of the array
-	 * @param rHeapPointer
-	 *            - Register containing the current end of the heap
+	 * @param rArraySize - Register containing the size of the array
+	 * @param rHeapPointer - Register containing the current end of the heap
 	 */
 	private void addIncrementHeappointer(Reg rArraySize, Reg rHeapPointer)
 	{
@@ -870,6 +901,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 	{
 		debugReg("Free : " + r.name);
 		doAssert(!regStack.contains(r.reg));
+		doAssert(!freeRegisters.contains(r.reg));
 		if (Op.gpRegisters.contains(r.reg)) {
 			freeRegisters.push(r.reg);
 		}
@@ -1099,11 +1131,81 @@ public class Generator extends CracklBaseVisitor<Op> {
 	}
 	
 	@Override
+	public Op visitForkStat(ForkStatContext ctx)
+	{
+		int address = result.getStaticGlobals().get("threadsReleasedJump");
+		add(Write, reg(PC), memAddr(address));
+		return null;
+	}
+	
+	@Override
+	public Op visitJoinStat(JoinStatContext ctx)
+	{
+		// first get, decrement and save number of unjoined threads
+		addObtainLock("unjoinedThreadsLock"); // Make sure this operation is locked!
+
+		Reg rOne = getFreeReg();
+		add(Const, constOp(1), rOne);
+		Reg rUnjoined = getFreeReg();
+		add(Read, memAddr(result.getStaticGlobals().get("unjoinedThreads")));
+		add(Receive, rUnjoined);
+		add(Compute, operator(Sub), rUnjoined, rOne, rUnjoined);
+		add(Write, rUnjoined, memAddr(result.getStaticGlobals().get("unjoinedThreads")));
+		addReleaseLock("unjoinedThreadsLock");
+		// add(Compute, operator(And), reg(SPID), rUnjoined, rUnjoined);
+		// add(Branch, reg(SPID), ind(reg(PC)));
+
+		// Now terminate if SPID != 0
+		branchJoinEndprog = addPlaceholder("Jump to endProg join");
+		//	add(Branch, reg(SPID), rel(0)); // should terminate the sprockell right?
+
+		// SPID = 0 should continue checking the counter in a dowhile
+
+		int spid0RetryLine = program.size();
+		add(Read, memAddr(result.getStaticGlobals().get("unjoinedThreads")));
+		add(Receive, rUnjoined);
+		add(Branch, rUnjoined, abs(spid0RetryLine));
+
+		freeReg(rOne);
+		freeReg(rUnjoined);
+		return null;
+	}
+
+	/**
+	 * Adds instructions to wait until the lock with 'name' is obtained
+	 */
+	private void addObtainLock(String name)
+	{
+		Reg rLockAddress = getFreeReg();
+		int lockAddress = result.getStaticGlobals().get(name);
+		add(Const, constOp(lockAddress), rLockAddress);
+
+		Reg rIsLocked = getFreeReg();
+		int retryLine = program.size();
+		add(TestAndSet, deref(rLockAddress));
+		add(Receive, rIsLocked);
+		add(Compute, operator(Equal), reg(Zero), rIsLocked, rIsLocked);
+		add(Branch, rIsLocked, abs(retryLine));
+		freeReg(rLockAddress);
+		freeReg(rIsLocked);
+	}
+	
+	private void addReleaseLock(String name){
+		Reg rLockAddress = getFreeReg();
+		int lockAddress = result.getStaticGlobals().get(name);
+		add(Const, constOp(lockAddress), rLockAddress);
+
+		add(Write, reg(Zero), deref(rLockAddress));
+		freeReg(rLockAddress);
+	}
+	
+	@Override
 	public Op visitLockDecl(LockDeclContext ctx)
 	{
 		//Just zeroing the lock value and write the pointer to the variable
 		Reg rLockPointer = getFreeReg();
-		add(Const, constOp(result.getStaticGlobals().get(ctx.ID().getText())), rLockPointer);
+		Const lockAddr = constOp(result.getStaticGlobals().get(ctx.ID().getText()));
+		add(Const, lockAddr, rLockPointer);
 		add(Write,reg(Zero) ,deref(rLockPointer) );
 		addSave(ctx.ID().getText(), rLockPointer);
 		freeReg(rLockPointer);
@@ -1113,26 +1215,16 @@ public class Generator extends CracklBaseVisitor<Op> {
 	@Override
 	public Op visitLockStat(LockStatContext ctx)
 	{
-		visit(ctx.expr());
-		Reg rLockAddress = popReg();
-		Reg rIsLocked = getFreeReg();
-		int retryLine = program.size();
-		add(TestAndSet, deref(rLockAddress));
-		add(Receive, rIsLocked);
-		add(Compute, operator(Equal), reg(Zero), rIsLocked, rIsLocked);
-		add(Branch, rIsLocked, abs(retryLine));
-		freeReg(rLockAddress);
-		freeReg(rIsLocked);
+		String name = ctx.ID().getText();
+		addObtainLock(name);
 		return null;
 	}
 
 	@Override
 	public Op visitUnlockStat(UnlockStatContext ctx)
 	{
-		visit(ctx.expr());
-		Reg rLockAddress = popReg();
-		add(Write, reg(Zero), deref(rLockAddress));
-		freeReg(rLockAddress);
+		String name = ctx.ID().getText();
+		addReleaseLock(name);
 		return null;
 	}
 	
@@ -1182,6 +1274,10 @@ public class Generator extends CracklBaseVisitor<Op> {
 			changeAt(functionPlaceholders.get(fcCtx), Jump, abs(function.startLine));
 		}
 		
+		if(branchJoinEndprog != -1){
+			//at the join statement, the 'other' sprockells should jump to endprog
+			changeAt(branchJoinEndprog, Branch, reg(SPID), abs(program.size())); 
+		}
 		
 		add(EndProg); //Just to be sure in the case main didn't add one...
 		doAssert(freeRegisters.containsAll(Op.gpRegisters));
@@ -1230,6 +1326,11 @@ public class Generator extends CracklBaseVisitor<Op> {
 	{
 		return new Operand.Target.Ind(r);
 
+	}
+
+	public Operand.Target.Rel rel(int relJump)
+	{
+		return new Operand.Target.Rel(relJump);
 	}
 
 	private static Operand.Operator operator(Op.Operator operator)
