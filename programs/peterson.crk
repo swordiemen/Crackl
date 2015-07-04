@@ -20,7 +20,7 @@ Program(sprockells=2) {
 			//waiting...
 		}
 		//CRIT
-		counter = counter + 1;
+		counter = counter + 10;
 		//\CRIT
 		flag[sid] = false;
 		
@@ -29,13 +29,12 @@ Program(sprockells=2) {
 
 	main {
 		releaseSprockells();
-		print(asdf);
 		int sid = getSprockellId();
-		print(sid);
 		peterson(sid);
 		
 		//If algorithm is working, this should always print 2 (counter's access is mutually exclusive)
 		//When run on 2 sprockells
+		joinSprockells();
 		print(counter);
 	}
 }

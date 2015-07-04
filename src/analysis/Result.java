@@ -117,7 +117,6 @@ public class Result {
 	}
 	
 	public void addStaticGlobal(String var){
-		System.out.println("ADDING : "+var);
 		staticGlobals.put(var, numberOfStaticGlobals++);
 	}
 	

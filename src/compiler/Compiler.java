@@ -93,20 +93,21 @@ public class Compiler {
 	 */
 	public ParseTree parse(String fileName) //throws TypeCheckException
 	{
+		ProgramContext tree = null;
 		CharStream chars = null;
 		try {
 			chars = new ANTLRInputStream(new FileReader(PROGRAMS_PATH + fileName));
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
 		Lexer lexer = new CracklLexer(chars);
 		TokenStream tokens = new CommonTokenStream(lexer);
 		CracklParser parser = new CracklParser(tokens);
 		parser.addErrorListener(errorListener);
-		ProgramContext tree = parser.program();
+		tree = parser.program();
 		//		if(errorListener.hasErrors()){
 		//			throw new TypeCheckException("Parsing file " + fileName + " has failed.");
 		//		}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 		return tree;
 	}
 
@@ -135,7 +136,7 @@ public class Compiler {
 	{
 		Compiler compiler = new Compiler();
 		try {
-			String program_name = "bank.crk";
+			String program_name = "peterson.crk";
 			Program program = compiler.compile(program_name);
 			compiler.write("crk_program.hs", program);
 		} catch (IOException e) {

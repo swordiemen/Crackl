@@ -99,6 +99,7 @@ public class CracklTest {
 	public void testPeterson()
 	{
 		succeeds("peterson.crk");
+		compare("peterson.crk", new String[]{"20"});
 	}
 
 	@Test(timeout = 10 * 1000)
@@ -117,6 +118,7 @@ public class CracklTest {
 	public void testStrings()
 	{
 		succeeds("strings.crk");
+		compare("strings.crk", new String[]{"===========", "hello world","===========", "hello world","===========", "hello world",});
 	}
 
 	@Test(timeout = 10 * 1000)
@@ -130,7 +132,7 @@ public class CracklTest {
 	@Test(timeout = 10 * 1000)
 	public void testPrint()
 	{
-		compare("print.crk", new String[] { "hey" });
+		compare("print.crk", new String[] { "Hello world!", "42" });
 	}
 
 	/**
@@ -139,7 +141,7 @@ public class CracklTest {
 	 * @param expected The expected output.
 	 */
 	public void compare(String fileName, String[] expected){
-		System.out.println("\nComparing the output of " + fileName + " to the expected output " + expected);
+		System.out.println("\nComparing the output of " + fileName + " to the expected output " + arrayToString(expected));
 		parseAndCompile(fileName);
 		ArrayList<String> actual = null;
 		actual = compileAndExecute(fileName);

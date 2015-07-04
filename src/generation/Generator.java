@@ -69,8 +69,8 @@ import analysis.Type;
 
 public class Generator extends CracklBaseVisitor<Op> {
 
-	public static final boolean DEBUG_OTHER = true;
-	public static final boolean DEBUG_REG = true;
+	public static final boolean DEBUG_OTHER = false;
+	public static final boolean DEBUG_REG = false;
 
 	public ArrayList<Line> program = new ArrayList<Line>();
 	
