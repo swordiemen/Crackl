@@ -137,7 +137,7 @@ public class CracklTest {
 	
 	@Test
 	public void testCallByReference(){
-		compare("cbr.crk", new String[]{"10,11"});
+		compare("cbr.crk", new String[]{"10","11"});
 	}
 	
 	//@Test
@@ -171,6 +171,7 @@ public class CracklTest {
 				sb.append(strings[i]);
 				sb.append(" ");
 			}
+			sb.replace(sb.length() - 1, sb.length(), ""); //remove the last space
 			sb.append("]");
 			return sb.toString();
 	}
