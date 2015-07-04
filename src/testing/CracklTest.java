@@ -12,22 +12,54 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Scanner;
 
+import org.junit.Before;
 import org.junit.Test;
 
 import compiler.Compiler;
-
 import exception.TypeCheckException;
 import generation.Program;
 
 public class CracklTest {
 
+	public static final String ANTLR_ERROR = "code generation does not match the current";
+	public static final String COMPLETE_ANTLR_ERROR = "ANTLR Tool version 4.4 used for code generation does not match the current runtime version 4.5ANTLR Tool version 4.4 used for code generation does not match the current runtime version 4.5";
+
+	PipedOutputStream out = new PipedOutputStream();
+	PipedInputStream in = null;	
 	Runtime rt = Runtime.getRuntime();
+	
+	@Before
+	public void init(){
+		// pipe the error stream
+		try {
+			in = new PipedInputStream(out);
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+		// set the error stream to our own PrintStream, so we can go over it after we're done
+		System.setErr(new PrintStream(out));
+	}
 
 	@Test
 	public void testStandardFunctions(){
 		String[] ee = {"0", "1", "1", "2", "3", "5", "8", "13", "21", "34", "55", "89", "144"};
 		compare("fibonacci.crk", ee);
 		fails("testje.crk", "not initialized");
+		fails("parsefail.crk");
+		succeeds("arrays.crk");
+		succeeds("fibonacci.crk");
+		succeeds("functions.crk");
+		succeeds("ifelse.crk");
+		succeeds("locks.crk");
+		succeeds("nestedwhile.crk");
+		succeeds("peterson.crk");
+		succeeds("pointers.crk");
+		succeeds("pointers2.crk");
+		succeeds("strings.crk");
+		succeeds("while.crk");
+		String[] whileArr = {"0","1"};
+		//compare("while.crk", whileArr);
+		compare("print.crk", new String[]{"hey"});
 	}
 
 	/**
@@ -36,13 +68,10 @@ public class CracklTest {
 	 * @param expected The expected output.
 	 */
 	public void compare(String fileName, String[] expected){
+		System.out.println("\nComparing the output of " + fileName + " to the expected output " + expected);
 		parseAndCompile(fileName);
 		ArrayList<String> actual = null;
-		try {
-			actual = getOutput();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		actual = compileAndExecute(fileName);
 		if(!eq(expected, actual)){
 			fail(String.format("Expected %s, got %s.\n", arrayToString(expected),actual ));
 		}
@@ -64,11 +93,13 @@ public class CracklTest {
 	 * Checks if a Crackl file succeeds the TypeChecker's standards.
 	 * @param fileName
 	 */
-	public void succeed(String fileName){
+	public void succeeds(String fileName){
+		System.out.println("\nTrying to see if " + fileName + " succeeds.");
 		Compiler comp = new Compiler();
 		try {
 			comp.compile(fileName);
 		} catch (TypeCheckException e) {
+			readIn();
 			fail("File " + fileName + " should have parsed correctly, but didnt'.");
 			e.printStackTrace();
 		}
@@ -76,62 +107,54 @@ public class CracklTest {
 
 	/**
 	 * Checks if a Crackl file fails the TypeChecker's standards.
-	 * @param filename
+	 * @param fileName
 	 */
-	public void fails(String filename){
+	public void fails(String fileName){
+		System.out.println("\nTrying to see if " + fileName + " fails.");
 		Compiler comp = new Compiler();
 		try {
-			comp.compile(filename);
-			fail("File " + filename + " should not have been parsed correctly, but did.");
+			comp.compile(fileName);
+			fail("File " + fileName + " should not have been parsed correctly, but did.");
+			readIn();
 		} catch (TypeCheckException e) {
+			readIn();			
 			// should happen
 		}
 	}
 
 	/**
 	 * Overloaded fails function, this time also checks if a specified error has been given by the TypeChecker.
-	 * @param filename The file to be checked.
+	 * @param fileName The file to be checked.
 	 * @param expectedError The error that is expected to be returned.
 	 */
-	public void fails(String filename, String expectedError){
-		// pipe the error stream
-		PipedOutputStream out = new PipedOutputStream();
-		PipedInputStream in = null;
-		try {
-			in = new PipedInputStream(out);
-		} catch (IOException e1) {
-			e1.printStackTrace();
-		}
-		// set the error stream to our own PrintStream, so we can go over it after we're done
-		System.setErr(new PrintStream(out));
+	public void fails(String fileName, String expectedError){
+		System.out.println("\nTrying to see if " + fileName + " succeeds with error " + expectedError);
 		Compiler comp = new Compiler();
 		try {
-			comp.compile(filename);
-			fail("File " + filename + " should not have been parsed correctly, but did.");
+			comp.compile(fileName);
+			fail("File " + fileName + " should not have been parsed correctly, but did.");
+			readIn();
 		} catch (TypeCheckException e) {
 			// supposed to happen, now check if our error stream contains the expected error.
 			boolean hasStr = false;
 			BufferedReader br = new BufferedReader(new InputStreamReader(in));
 			String nextLine = null;
 			try {
-				nextLine = br.readLine();
-
-				while(nextLine != null){
+				while(in.available() > 0){
+					nextLine = br.readLine();
+					if(!nextLine.contains(ANTLR_ERROR)){
+						System.out.println("Error: " + nextLine);
+					}
 					if(nextLine.contains(expectedError)){
 						hasStr = true;
 					}
-					if(!(in.available() > 0)){ 
-						// stackoverflow.com/questions/804951/is-it-possible-to-read-from-a-inputstream-with-a-timeout
-						break;
-					}
-					nextLine = br.readLine();
 				}
 			} catch (IOException e1) {
 				e1.printStackTrace();
 			}
 
 			if(!hasStr){
-				fail("Error stream didn't contain " + expectedError);
+				fail("Error stream didn't contain the error '" + expectedError + "'.");
 			}
 		}
 		finally{
@@ -149,7 +172,8 @@ public class CracklTest {
 		try {
 			prog = compiler.compile(fileName);
 		} catch (TypeCheckException e) {
-			e.printStackTrace();
+			//e.printStackTrace();
+			fail("File " + fileName + " didn't parse.");
 		}
 		try {
 			compiler.write("crk_program.hs", prog);
@@ -157,7 +181,7 @@ public class CracklTest {
 			e.printStackTrace();
 		}
 	}
-	
+
 	/**
 	 * Compiles a file, executes it, and returns its output.
 	 * @param fileName The file to be compiled.
@@ -233,4 +257,19 @@ public class CracklTest {
 		}
 		return res;
 	}
+
+	public void readIn(){
+		String nextLine = null;
+		try {
+			BufferedReader br = new BufferedReader(new InputStreamReader(in));
+			while(in.available() > 0){
+				nextLine = br.readLine();
+				System.out.println("Error: " + nextLine);
+			}
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+	}
+	
+	
 }
