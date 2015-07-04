@@ -26,11 +26,11 @@ stat: GLOBAL? type ID  (ASSIGN expr)? SEMI  		#decl
      
 numOfSprockell: (LPAR SPROCKELLCOUNT ASSIGN NUM RPAR);
     
-funcDecl: FUNC retType ID LPAR params RPAR LCURL stat* ret? RCURL;
+funcDecl: FUNC retType ID LPAR params RPAR LCURL stat* ret RCURL;
 mainfunc: MAIN LCURL stat* RCURL;
 global: GLOBAL LCURL  RCURL;
 
-ret: 'return ' expr SEMI;
+ret: 'return' expr? SEMI;
 params: ((type ID COMMA)* type ID)?;
     
 target: ID;

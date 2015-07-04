@@ -62,6 +62,10 @@ public class TypeChecker extends CracklBaseListener {
 	public static final String FUNC_NOT_IN_TOP_LEVEL_ERROR = "Functions can only be made in the top level scope.";
 	public static final String VARIABLE_NOT_INITIALIZED_ERROR = "Variable '%s' is not initialized.";
 	public static final String GLOBAL_VARIABLE_NOT_IN_OUTER_SCOPE_ERROR = "Global variable '%s' may only be declared in the top level scope.";
+	public static final String FUNCTION_ALREADY_EXISTS_ERROR = "Function '%s' already exists.";
+	public static final String VARIABLE_ALREADY_DECLARED_ERROR = "Variable '%s' already declared in this scope!";
+	public static final String FUNCTION_VOID_RETURN_ERROR = "Function '%s' has a return expression, but its return type is void (should be just 'return;').";
+	public static final String FUNCTION_DOES_NOT_EXIST_ERROR = "Function '%s' does not exist.";
 
 	ParseTreeProperty<Type> types;
 	ParseTreeProperty< ArrayList<Type>> paramTypes;
@@ -212,7 +216,7 @@ public class TypeChecker extends CracklBaseListener {
 		}
 		Scope curScope = scopes.get(scopes.size()-1);
 		if(curScope.getType(var) != null){
-			addError(ctx, String.format("Variable '%s' already declared in this scope!", var));
+			addError(ctx, String.format(VARIABLE_ALREADY_DECLARED_ERROR, var));
 		}else{
 			Type lhsType = getTypeFromContext(ctx.type());
 			if (ctx.expr() != null) {
@@ -273,7 +277,7 @@ public class TypeChecker extends CracklBaseListener {
 
 		Scope curScope = scopes.get(scopes.size()-1);
 		if(curScope.getType(var) != null){
-			addError(ctx,String.format("Variable '%s' already declared in this scope!", var));
+			addError(ctx,String.format(VARIABLE_ALREADY_DECLARED_ERROR, var));
 		}else{
 			//declaring an array
 			//when declaring an array without a given size, an expression of type Array should be given.
@@ -297,7 +301,7 @@ public class TypeChecker extends CracklBaseListener {
 		}
 		Scope curScope = scopes.get(scopes.size()-1);
 		if(curScope.getType(var) != null){
-			addError(ctx,String.format("Variable '%s' already declared in this scope!", var));
+			addError(ctx,String.format(VARIABLE_ALREADY_DECLARED_ERROR, var));
 		}else{
 			Array lhsType = new Array(Type.get(ctx.type().getText()));
 			if(!checkType(ctx.expr(), Type.INT)){
@@ -395,6 +399,9 @@ public class TypeChecker extends CracklBaseListener {
 		Type retType = Type.get(ctx.retType().getText());
 		boolean isVoid = retType == Type.VOID;
 		String functionName = ctx.ID().getText();
+//		
+//		for()
+		
 		funcTypes.put(functionName, retType);
 	}
 
@@ -406,12 +413,12 @@ public class TypeChecker extends CracklBaseListener {
 		String functionName = ctx.ID().getText();
 
 		if(isVoid){
-			if(ctx.ret() != null){
-				addError(ctx, "Function" + functionName + " has a return statement, but its return type is void.");
+			if(ctx.ret().expr() != null){
+				addError(ctx, String.format(FUNCTION_VOID_RETURN_ERROR, functionName));
 			}
 		}
 		if(funcTypes.containsKey(ctx)){
-			addError(ctx, String.format("Function '%s' already exists.", functionName));
+			addError(ctx, String.format(FUNCTION_ALREADY_EXISTS_ERROR, functionName));
 		}else{
 			funcTypes.put(functionName, retType);
 			if(!isVoid){
@@ -477,7 +484,7 @@ public class TypeChecker extends CracklBaseListener {
 	}
 
 	public boolean hasErrors() {
-		return this.errors.size() > 0;
+		return !this.errors.isEmpty();
 	}
 
 	public ArrayList<String> getErrors()
@@ -520,7 +527,7 @@ public class TypeChecker extends CracklBaseListener {
 		String funcName = ctx.ID().getText();
 		Type funcType = funcTypes.get(funcName);
 		if(funcType == null){
-			addError(ctx, "Function " + funcName + " does not exist.");
+			addError(ctx, String.format(FUNCTION_DOES_NOT_EXIST_ERROR, funcName));
 		}else{
 			types.put(ctx, funcType);
 			//TODO: find good way to support calling a function Before exiting it's declaration (e.g. recursion or even reordered functions)
@@ -584,7 +591,7 @@ public class TypeChecker extends CracklBaseListener {
 			addError(ctx, String.format("Locks should not be created in inner scopes"));
 		}
 		if(curScope.getType(var) != null){
-			addError(ctx, String.format("Variable '%s' already declared in this scope!", var));
+			addError(ctx, String.format(VARIABLE_ALREADY_DECLARED_ERROR, var));
 		}else{
 			Type lhsType = Type.LOCK;
 				curScope.addInitVar(var);

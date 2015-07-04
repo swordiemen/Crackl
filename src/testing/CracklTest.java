@@ -40,7 +40,7 @@ public class CracklTest {
 		System.setErr(new PrintStream(out));
 	}
 
-	@Test
+	//@Test
 	public void testStandardFunctions(){
 		String[] ee = {"0", "1", "1", "2", "3", "5", "8", "13", "21", "34", "55", "89", "144"};
 		compare("fibonacci.crk", ee);
@@ -57,9 +57,19 @@ public class CracklTest {
 		succeeds("pointers2.crk");
 		succeeds("strings.crk");
 		succeeds("while.crk");
-		String[] whileArr = {"0","1"};
-		//compare("while.crk", whileArr);
+		String[] whileArr = {"hey","0","1"};
+		compare("while.crk", whileArr);
 		compare("print.crk", new String[]{"hey"});
+	}
+	
+	@Test
+	public void testCallByReference(){
+		compare("cbr.crk", new String[]{"10,11"});
+	}
+	
+	//@Test
+	public void testConcurrency(){
+		compare("peterson.crk", new String[]{"2"});
 	}
 
 	/**
@@ -68,9 +78,12 @@ public class CracklTest {
 	 * @param expected The expected output.
 	 */
 	public void compare(String fileName, String[] expected){
-		System.out.println("\nComparing the output of " + fileName + " to the expected output " + expected);
+		System.out.println("\nComparing the output of " + fileName + " to the expected output " + arrayToString(expected));
 		parseAndCompile(fileName);
+		readIn();
 		ArrayList<String> actual = null;
+
+		readIn();
 		actual = compileAndExecute(fileName);
 		if(!eq(expected, actual)){
 			fail(String.format("Expected %s, got %s.\n", arrayToString(expected),actual ));
@@ -225,7 +238,6 @@ public class CracklTest {
 			e.printStackTrace();
 		}
 
-		System.out.println("Writing executable: "+outputFile);
 		Process p2 = rt.exec(outputFile);
 
 		try {

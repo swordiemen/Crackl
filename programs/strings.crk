@@ -12,11 +12,11 @@ Program{
 		text dis = "===========";
 		text hey = "hello world";
 
-		out(dis);
+		print(dis);
 		while(true){
-			out(hey);
+			print(hey);
 			wait(3000);
-			out(dis);
+			print(dis);
 			wait(4000);
 		}
 	}

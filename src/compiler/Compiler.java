@@ -54,6 +54,7 @@ public class Compiler {
 	 */
 	public Program compile(String fileName) throws TypeCheckException
 	{
+		errorListener = new ParseErrorListener();
 		ParseTree tree = parse(fileName);
 		ParseTreeWalker walker = new ParseTreeWalker();
 		walker.walk(checker, tree);
@@ -68,17 +69,15 @@ public class Compiler {
 			Result result = checker.getResult();
 
 			Generator generator = new Generator(result, checker.functions);
-			try {
-				generator.visit(tree);
-			} catch (Exception e) {
-				e.printStackTrace();
-				// System.out.println(formatProgram(generator.getProgram()));
-			}
+			generator.visit(tree);
 			ArrayList<Line> programLines = generator.program;
 			Program program = new Program(programLines, result.numberOfSprockells);
 			return program;
 		}
 		else {
+			for(String err : checker.getErrors()){
+				System.out.println(err);
+			}
 			throw new TypeCheckException("Build failed (TypeChecker)");
 		}
 	}

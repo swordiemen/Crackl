@@ -1,0 +1,17 @@
+Program {
+
+	func boolean addOne(#int ptr){
+		int old = @ptr;
+		old = old + 1;
+		@ptr = old;
+		return true;
+	}
+
+	main {
+		int a = 10;
+		print(a);
+		boolean b = 0;
+		addOne(&a);
+		print(a);
+	}
+}
