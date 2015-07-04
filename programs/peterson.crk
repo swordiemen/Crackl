@@ -28,6 +28,8 @@ Program(sprockells=2) {
 	}
 
 	main {
+		releaseSprockells();
+		print(asdf);
 		int sid = getSprockellId();
 		print(sid);
 		peterson(sid);

@@ -19,8 +19,10 @@ stat: GLOBAL? type ID  (ASSIGN expr)? SEMI  		#decl
     | mainfunc										#mainFuncStat
     | funcDecl										#funcDeclStat
     | PRINT LPAR expr RPAR SEMI 					#printExprStat
-    | LOCK LPAR expr RPAR SEMI						#lockStat
-    | UNLOCK LPAR expr RPAR	SEMI					#unlockStat
+    | LOCK LPAR ID RPAR SEMI						#lockStat
+    | UNLOCK LPAR ID RPAR	SEMI					#unlockStat
+    | FORK 											#forkStat
+    | JOIN				 							#joinStat
      ;
 
      
@@ -72,6 +74,8 @@ BOOL: 'true' | 'false';
 ARRAY: LSQ RSQ;
 SPROCKELLID: 'getSprockellId()';
 CREATELOCK: 'createLock()';
+FORK: 'releaseSprockells();';
+JOIN: 'joinSprockells();';
 
 PTRASSIGN: '=>';
 PROGRAM_START: 'Program';

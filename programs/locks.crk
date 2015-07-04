@@ -4,6 +4,7 @@ Program(sprockells=20) {
 	global int sharedValue = 0;
 
 	main {
+		releaseSprockells();
 	
 		int i = 0;
 
