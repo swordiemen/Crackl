@@ -45,14 +45,16 @@ retType: type | VOID;
 
 funcCall: ID LPAR (expr? | (expr (COMMA expr)*)) RPAR;
 
-expr: funcCall						#funcExpr
-    | ID LSQ expr RSQ				#arrayIndexExpr
+expr: ID LSQ expr RSQ				#arrayIndexExpr
     | LSQ (expr (COMMA expr)*)?	RSQ	#arrayExpr
     | NOT expr                      #notExpr
-    | expr OPERATOR expr      #operatorExpr
+    | SIGNOPERATOR expr 			#negExpr
+    | expr OTHEROPERATOR expr      		#otherOperatorExpr
+    | expr SIGNOPERATOR expr      		#signOperatorExpr
     | expr AND expr                 #andExpr
     | expr OR  expr                 #orExpr
     | expr (LT | GT | EQ | NE | GTE | LTE) expr #compExpr
+	| funcCall						#funcExpr
     | LPAR expr RPAR                #parExpr
     | DEREF ID						#ptrDerefExpr
     | REF ID						#ptrRefExpr
@@ -67,7 +69,8 @@ INTTYPE: 'int';
 BOOLTYPE: 'boolean';
 TEXTTYPE: 'text';
 
-OPERATOR: (PLUS | MINUS | MODULO | MULTIPLY | DIVIDE);
+OTHEROPERATOR: (MODULO | MULTIPLY | DIVIDE);
+SIGNOPERATOR: (MINUS|PLUS);
 
 LOCK: 'lock';
 UNLOCK: 'unlock';

@@ -26,10 +26,11 @@ import grammar.CracklParser.IdExprContext;
 import grammar.CracklParser.IfStatContext;
 import grammar.CracklParser.LockDeclContext;
 import grammar.CracklParser.MainfuncContext;
+import grammar.CracklParser.NegExprContext;
 import grammar.CracklParser.NotExprContext;
 import grammar.CracklParser.NumOfSprockellContext;
-import grammar.CracklParser.OperatorExprContext;
 import grammar.CracklParser.OrExprContext;
+import grammar.CracklParser.OtherOperatorExprContext;
 import grammar.CracklParser.ParExprContext;
 import grammar.CracklParser.ParamsContext;
 import grammar.CracklParser.PrimitiveContext;
@@ -41,6 +42,7 @@ import grammar.CracklParser.PtrDeclNormalContext;
 import grammar.CracklParser.PtrDerefExprContext;
 import grammar.CracklParser.PtrRefExprContext;
 import grammar.CracklParser.RetContext;
+import grammar.CracklParser.SignOperatorExprContext;
 import grammar.CracklParser.SprockellIdExprContext;
 import grammar.CracklParser.TypeContext;
 
@@ -508,7 +510,7 @@ public class TypeChecker extends CracklBaseListener {
 	}
 	
 	@Override
-	public void exitOperatorExpr(OperatorExprContext ctx)
+	public void exitSignOperatorExpr(SignOperatorExprContext ctx)
 	{
 		if(checkType(ctx.expr(0), Type.INT) && checkType(ctx.expr(1), Type.INT)){
 			types.put(ctx, Type.INT);
@@ -518,6 +520,27 @@ public class TypeChecker extends CracklBaseListener {
 			result.addType(ctx, Type.ERR);
 		}
 		result.addNode(ctx);
+	}
+	
+	@Override
+	public void exitNegExpr(NegExprContext ctx)
+	{
+		checkType(ctx.expr(), Type.INT);
+		types.put(ctx, Type.INT);
+		super.exitNegExpr(ctx);
+	}
+	
+	@Override
+	public void exitOtherOperatorExpr(OtherOperatorExprContext ctx)
+	{
+		if(checkType(ctx.expr(0), Type.INT) && checkType(ctx.expr(1), Type.INT)){
+			types.put(ctx, Type.INT);
+			result.addType(ctx, Type.INT);
+		}else{
+			types.put(ctx, Type.ERR);
+			result.addType(ctx, Type.ERR);
+		}
+		result.addNode(ctx);	super.exitOtherOperatorExpr(ctx);
 	}
 
 	@Override
@@ -694,7 +717,7 @@ public class TypeChecker extends CracklBaseListener {
 		result.addType(ctx, Type.INT);
 		result.addNode(ctx);
 	}
-
+	
 	@Override
 	public void exitCompExpr(CompExprContext ctx) {
 		if(checkType(ctx.expr(0), Type.INT) && checkType(ctx.expr(1), Type.INT)){

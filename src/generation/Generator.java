@@ -30,9 +30,10 @@ import grammar.CracklParser.LockDeclContext;
 import grammar.CracklParser.LockStatContext;
 import grammar.CracklParser.MainFuncStatContext;
 import grammar.CracklParser.MainfuncContext;
+import grammar.CracklParser.NegExprContext;
 import grammar.CracklParser.NotExprContext;
-import grammar.CracklParser.OperatorExprContext;
 import grammar.CracklParser.OrExprContext;
+import grammar.CracklParser.OtherOperatorExprContext;
 import grammar.CracklParser.PrintExprStatContext;
 import grammar.CracklParser.ProgramContext;
 import grammar.CracklParser.PtrAssignContext;
@@ -41,6 +42,7 @@ import grammar.CracklParser.PtrDeclNormalContext;
 import grammar.CracklParser.PtrDerefExprContext;
 import grammar.CracklParser.PtrRefExprContext;
 import grammar.CracklParser.RetContext;
+import grammar.CracklParser.SignOperatorExprContext;
 import grammar.CracklParser.SprockellIdExprContext;
 import grammar.CracklParser.StatContext;
 import grammar.CracklParser.UnlockStatContext;
@@ -792,18 +794,44 @@ rReturnValue = popReg();
 		changeAt(branchLine, Branch, continueReg, abs(nextEnterLine));
 		return null;
 	}
-
+	
 	@Override
-	public Op visitOperatorExpr(OperatorExprContext ctx)
+	public Op visitOtherOperatorExpr(OtherOperatorExprContext ctx)
 	{
+		//mult, div, modulo and such
 		visit(ctx.expr(0));
 		visit(ctx.expr(1));
 		Reg r1 = popReg();
 		Reg r2 = popReg();
-		Operator operator = Op.getOperatorByString(ctx.OPERATOR().getText());
+		Operator operator = Op.getOperatorByString(ctx.OTHEROPERATOR().getText());
 		add(Compute, operator(operator),r2 , r1, r1);
 		freeReg(r2);
 		pushReg(r1);
+		return null;
+	}
+
+	@Override
+	public Op visitSignOperatorExpr(SignOperatorExprContext ctx)
+	{
+		//plus and minus
+		visit(ctx.expr(0));
+		visit(ctx.expr(1));
+		Reg r1 = popReg();
+		Reg r2 = popReg();
+		Operator operator = Op.getOperatorByString(ctx.SIGNOPERATOR().getText());
+		add(Compute, operator(operator),r2 , r1, r1);
+		freeReg(r2);
+		pushReg(r1);
+		return null;
+	}
+	
+	@Override
+	public Op visitNegExpr(NegExprContext ctx)
+	{
+		visit(ctx.expr());
+		Reg rExpr = popReg();
+		add(Compute, operator(Sub), reg(Zero), rExpr, rExpr);
+		pushReg(rExpr);
 		return null;
 	}
 
@@ -983,6 +1011,7 @@ rReturnValue = popReg();
 	{
 			int ASCII_NEWLINE = (int) '\n';
 			int NUM_OFFSET_ASCII = 48;
+			int ASCII_MINUS = '-';
 		//Print string or Number
 		if (result.getType(ctx.expr()) == Type.TEXT) {
 			//PRINT STRING
@@ -1025,6 +1054,18 @@ rReturnValue = popReg();
 			visit(ctx.expr());
 			Reg rNum = popReg();
 			Reg rRest = getFreeReg();
+			
+			//Negate number if negative, and print -
+			Reg rPos = getFreeReg();
+			add(Compute, operator(Gt), rNum, reg(Zero), rPos); //if gt 0, skip this part
+			int posBranchLine = addPlaceholder("negative branch line");
+			add(Compute, operator(Sub), reg(Zero), rNum, rNum); // minus minus = plus :)
+			add(Const, constOp(ASCII_MINUS), rPos); 
+			add(Write, rPos, MemAddr.StdIO); //write minus sign
+
+			changeAt(posBranchLine, Branch, rPos, abs(program.size()));
+			freeReg(rPos);
+			
 
 			//First find 'length' of number
 			Reg rDiv = getFreeReg();
