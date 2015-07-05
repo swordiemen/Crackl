@@ -127,6 +127,10 @@ public class CracklTest {
 	public void testFunctions()
 	{
 		succeeds("functions.crk");
+		compare("functions.crk", new String[]{
+				"8 powers of 2 :)", "1", "2", "4", "8", "16", "32", "64", "128",
+				"3 powers of 12!", "1", "12", "144"
+		});
 	}
 
 	@Test(timeout = 10 * 1000)

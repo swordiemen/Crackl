@@ -136,8 +136,15 @@ public class Generator extends CracklBaseVisitor<Op> {
 
 		// add instructions to remove parameters from stack, and restore PC with return address
 		// RETURN: add instructions to remove parameters from stack, restore PC with return address, and put returnvalue on the stack
-		visit(ctx.ret());
-		Reg rReturnValue = popReg();
+
+		Reg rReturnValue;
+		if( ! ctx.retType().getText().equals("void")){
+			visit(ctx.ret());
+rReturnValue = popReg();
+		}else{
+			//instead of returning nothing, it's more consistent to return 0. The typechecker will disallow usage of the return value anyway.
+			rReturnValue = reg(Zero);
+		}
 
 		// add instructions to "pop" the local variables from the stack
 		addDecrSp(toPop);
