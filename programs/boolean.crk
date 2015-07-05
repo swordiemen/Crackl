@@ -1,0 +1,29 @@
+Program{
+
+	main{
+		boolean yes = true;
+		boolean no = false;
+		boolean notYes = !yes;
+		boolean notNo = !no;
+		boolean notNo5 = !!!!!no;
+		
+		//011
+		print(notYes);
+		print(notNo);
+		print(notNo5);
+		
+		//0100
+		print(yes && no);
+		print(yes && yes);
+		print(no && no);
+		print(no && yes);
+		
+		//1101
+		print(yes || no);
+		print(yes || yes);
+		print(no || no);
+		print(no || yes);
+		
+	}
+
+}

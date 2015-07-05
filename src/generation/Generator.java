@@ -30,7 +30,9 @@ import grammar.CracklParser.LockDeclContext;
 import grammar.CracklParser.LockStatContext;
 import grammar.CracklParser.MainFuncStatContext;
 import grammar.CracklParser.MainfuncContext;
+import grammar.CracklParser.NotExprContext;
 import grammar.CracklParser.OperatorExprContext;
+import grammar.CracklParser.OrExprContext;
 import grammar.CracklParser.PrintExprStatContext;
 import grammar.CracklParser.ProgramContext;
 import grammar.CracklParser.PtrAssignContext;
@@ -678,7 +680,7 @@ public class Generator extends CracklBaseVisitor<Op> {
 		// Increase and write back changed heappointer
 		addIncrementHeappointer(rArraySize, rHeapPointer);
 	}
-
+//
 	/**
 	 * Increments and writes back the heap pointer Note: it consumes two registers, both of which are free'd implicitly
 	 * @param rArraySize - Register containing the size of the array
@@ -1294,6 +1296,29 @@ public class Generator extends CracklBaseVisitor<Op> {
 		Reg r2 = popReg();
 		add(Compute, operator(And), r1, r2, r1);
 		freeReg(r2);
+		pushReg(r1);
+		return null;
+	}
+	
+	@Override
+	public Op visitOrExpr(OrExprContext ctx)
+	{
+		visit(ctx.expr(0));
+		visit(ctx.expr(1));
+		Reg r1 = popReg();
+		Reg r2 = popReg();
+		add(Compute, operator(Or), r1, r2, r1);
+		freeReg(r2);
+		pushReg(r1);
+		return null;
+	}
+	
+	@Override
+	public Op visitNotExpr(NotExprContext ctx)
+	{
+		visit(ctx.expr());
+		Reg r1 = popReg();
+		add(Compute, operator(Equal), r1, reg(Zero), r1);
 		pushReg(r1);
 		return null;
 	}

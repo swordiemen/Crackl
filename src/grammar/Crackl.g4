@@ -38,7 +38,8 @@ params: ((type ID COMMA)* type ID)?;
 target: ID;
 derefTarget: DEREF ID;
 
-type: PTRTYPE? primitive | PTRTYPE type;
+type: PTRTYPE? arrayType | PTRTYPE type;
+arrayType: primitive ARRAY? | primitive type;
 primitive: INTTYPE | BOOLTYPE | TEXTTYPE;
 retType: type | VOID;
 
@@ -46,7 +47,7 @@ funcCall: ID LPAR (expr? | (expr (COMMA expr)*)) RPAR;
 
 expr: funcCall						#funcExpr
     | ID LSQ expr RSQ				#arrayIndexExpr
-    | LSQ (expr (COMMA expr)*)?	RSQ		#arrayExpr
+    | LSQ (expr (COMMA expr)*)?	RSQ	#arrayExpr
     | NOT expr                      #notExpr
     | expr OPERATOR expr      #operatorExpr
     | expr AND expr                 #andExpr

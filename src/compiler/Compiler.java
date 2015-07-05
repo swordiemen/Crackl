@@ -2,14 +2,13 @@ package compiler;
 
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.antlr.v4.runtime.ANTLRErrorListener;
-import org.antlr.v4.runtime.ANTLRErrorStrategy;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -50,9 +49,8 @@ public class Compiler {
 	 * @param fileName
 	 *            The name of the file where the code is written.
 	 * @return program The program created by the generator.
-	 * @throws TypeCheckException
 	 */
-	public Program compile(String fileName) throws TypeCheckException
+	public Program compile(String fileName) throws TypeCheckException, FileNotFoundException, IOException
 	{
 		errorListener = new ParseErrorListener();
 		ParseTree tree = parse(fileName);
@@ -88,25 +86,27 @@ public class Compiler {
 	 * @param fileName
 	 *            Name of the file to be parsed.
 	 * @return <b>parseTree</b> The resulting parseTree.
-	 * @throws TypeCheckException 
 	 */
-	public ParseTree parse(String fileName) //throws TypeCheckException
+	public ParseTree parse(String fileName) throws TypeCheckException, FileNotFoundException, IOException
 	{
 		ProgramContext tree = null;
 		CharStream chars = null;
-		try {
-			chars = new ANTLRInputStream(new FileReader(PROGRAMS_PATH + fileName));
-		Lexer lexer = new CracklLexer(chars);
-		TokenStream tokens = new CommonTokenStream(lexer);
-		CracklParser parser = new CracklParser(tokens);
-		parser.addErrorListener(errorListener);
-		tree = parser.program();
-		//		if(errorListener.hasErrors()){
-		//			throw new TypeCheckException("Parsing file " + fileName + " has failed.");
-		//		}
-		} catch (IOException e) {
-			e.printStackTrace();
+
+		File inputFile = new File(PROGRAMS_PATH + fileName);
+		if (inputFile.exists()) {
+			chars = new ANTLRInputStream(new FileReader(inputFile));
+			Lexer lexer = new CracklLexer(chars);
+			TokenStream tokens = new CommonTokenStream(lexer);
+			CracklParser parser = new CracklParser(tokens);
+			parser.addErrorListener(errorListener);
+			tree = parser.program();
 		}
+		else {
+			throw new FileNotFoundException(PROGRAMS_PATH + fileName);
+		}
+		// if(errorListener.hasErrors()){
+		// throw new TypeCheckException("Parsing file " + fileName + " has failed.");
+			// }
 		return tree;
 	}
 
@@ -135,7 +135,7 @@ public class Compiler {
 	{
 		Compiler compiler = new Compiler();
 		try {
-			String program_name = "peterson.crk";
+			String program_name = "arrays.crk";
 			Program program = compiler.compile(program_name);
 			compiler.write("crk_program.hs", program);
 		} catch (IOException e) {

@@ -8,6 +8,7 @@ import grammar.CracklParser.ArrayDeclContext;
 import grammar.CracklParser.ArrayDeclInitContext;
 import grammar.CracklParser.ArrayExprContext;
 import grammar.CracklParser.ArrayIndexExprContext;
+import grammar.CracklParser.ArrayTypeContext;
 import grammar.CracklParser.AssignDerefContext;
 import grammar.CracklParser.AssignStatContext;
 import grammar.CracklParser.BlockStatContext;
@@ -24,7 +25,6 @@ import grammar.CracklParser.FuncExprContext;
 import grammar.CracklParser.IdExprContext;
 import grammar.CracklParser.IfStatContext;
 import grammar.CracklParser.LockDeclContext;
-import grammar.CracklParser.LockStatContext;
 import grammar.CracklParser.MainfuncContext;
 import grammar.CracklParser.NotExprContext;
 import grammar.CracklParser.NumOfSprockellContext;
@@ -43,7 +43,6 @@ import grammar.CracklParser.PtrRefExprContext;
 import grammar.CracklParser.RetContext;
 import grammar.CracklParser.SprockellIdExprContext;
 import grammar.CracklParser.TypeContext;
-import grammar.CracklParser.UnlockStatContext;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -637,20 +636,34 @@ public class TypeChecker extends CracklBaseListener {
 		
 	}
 	
-	//Get type, pointer aware
+	//Get type, pointer/array aware
 	private Type getTypeFromContext(TypeContext ctx ){
 		Type type;
-		if(ctx.primitive()==null){
+		if(ctx.arrayType()==null){
 			//nested pointers
 			type = new Pointer(getTypeFromContext(ctx.type()));
 		}else{
-			PrimitiveContext primCtx = ctx.primitive();
-			type = Type.get(primCtx.getText());
+			ArrayTypeContext arrayTypeCtx = ctx.arrayType();
+			type = getTypeFromArrayContext(arrayTypeCtx);
 			if (ctx.PTRTYPE() != null) {
 				type = new Pointer(type);
 			}
 		}
 		return type;
+	}
+	
+	private Type getTypeFromArrayContext(ArrayTypeContext ctx){
+			Type type;
+		if(ctx.primitive()==null){
+			type = new Array(getTypeFromContext(ctx.type()));
+		}else{
+			PrimitiveContext primCtx = ctx.primitive();
+			type = Type.get(primCtx.getText());
+			if (ctx.ARRAY() != null) {
+				type = new Array(type);
+			}
+		}
+		return type;	
 	}
 
 	@Override
