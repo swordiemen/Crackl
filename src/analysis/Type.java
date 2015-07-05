@@ -134,6 +134,8 @@ public class Type {
 			return "invalid type";
 		case Void:
 			return "void";
+		case Text:
+			return "text";
 		default:
 			return "Cannot get the toString() of unexpected type " + this.type;
 		}

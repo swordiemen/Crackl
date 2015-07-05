@@ -1,0 +1,9 @@
+Program {
+
+	main{
+		print(false * true);
+		print(true + true);
+		print(true / false);
+		print(false - false);
+	}
+}

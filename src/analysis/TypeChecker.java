@@ -66,6 +66,7 @@ public class TypeChecker extends CracklBaseListener {
 	public static final String VARIABLE_ALREADY_DECLARED_ERROR = "Variable '%s' already declared in this scope!";
 	public static final String FUNCTION_VOID_RETURN_ERROR = "Function '%s' has a return expression, but its return type is void (should be just 'return;').";
 	public static final String FUNCTION_DOES_NOT_EXIST_ERROR = "Function '%s' does not exist.";
+	public static final String ID_NOT_ARRAY_ERROR = "Identifier '%s' is not an array.";
 
 	ParseTreeProperty<Type> types;
 	ParseTreeProperty< ArrayList<Type>> paramTypes;
@@ -160,7 +161,7 @@ public class TypeChecker extends CracklBaseListener {
 		isInitialized(ctx.target().getText());
 		Type type = getType(ctx.target());
 		if(!(type instanceof Array)){
-			addError(ctx,"Identifier " + ctx.target().getText() + " is not an array.");
+			addError(ctx, String.format(ID_NOT_ARRAY_ERROR, ctx.target().getText()));
 		}else{
 			Array arrType = (Array) type;
 			Type typeOfArray = arrType.getTypeObj();

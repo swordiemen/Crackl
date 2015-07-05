@@ -40,6 +40,7 @@ public class CracklTest {
 		}
 		// set the error stream to our own PrintStream, so we can go over it after we're done
 		System.setErr(new PrintStream(out));
+		System.out.println("--------------------------------------------------");
 	}
 	
 	@After
@@ -69,7 +70,27 @@ public class CracklTest {
 	@Test(timeout = 10 * 1000)
 	public void testIfElse(){
 		fails("IfElseParseFail","Expected type boolean, got integer");
-		compare("IfElseTest.crk", new String[]{"20"});
+		compare("IfElseTest.crk", new String[]{"33"});
+	}
+	
+	@Test(timeout = 10 * 1000)
+	public void testExpressions(){
+		fails("BoolOrInt.crk", "Expected type boolean, got int");
+		fails("BoolTimesBool.crk", "Expected type integer, got boolean");
+		compare("ExpressionsTest.crk", new String[]{"8","12", "3", "4", "1", "0", "0"});
+	}
+	
+	@Test(timeout = 10 * 1000)
+	public void testPointer(){
+		fails("PointerFail1.crk", "Expected type boolean, got int");
+		fails("PointerFail2.crk", "Expected type integer, got @int");
+		compare("PointerTest.crk", new String[]{"100", "1", "100"});
+		compare("pointers.crk", new String[]{"4", "5", "7", "8", "7", "9"}); //includes functions
+	}
+	
+	@Test(timeout = 10 * 1000)
+	public void testBankATM(){
+		succeeds("bank.crk");//output can differ, can't really test
 	}
 	
 	@Test(timeout = 10 * 1000)
@@ -102,6 +123,8 @@ public class CracklTest {
 	public void testArrays()
 	{
 		succeeds("arrays.crk");
+		fails("ArrayFailInit.crk", "Expected type integer, got boolean");
+		fails("ArrayFailAssign.crk", "Expected type boolean, got text");
 		//Tests three forms of arrays, and an not-immediate initialized array
 		compare("arrays.crk", new String[]{
 			"stack:", "3", "6", "9",
@@ -146,9 +169,10 @@ public class CracklTest {
 	}
 
 	@Test(timeout = 10 * 1000)
-	public void testNestedwhile()
+	public void testWhile()
 	{
 		succeeds("nestedwhile.crk");
+		compare("nestedwhile.crk", new String[]{"0", "1", "2", "3", "0", "1", "2", "3", "0", "1", "2", "3"});
 	}
 
 	@Test(timeout = 10 * 1000)
@@ -178,14 +202,6 @@ public class CracklTest {
 	}
 
 	@Test(timeout = 10 * 1000)
-	public void testWhile()
-	{
-		succeeds("while.crk");
-		String[] whileArr = { "0", "1" };
-		// compare("while.crk", whileArr);
-	}
-
-	@Test(timeout = 10 * 1000)
 	public void testPrint()
 	{
 		compare("print.crk", new String[] { "Hello world!", "42" });
@@ -194,11 +210,6 @@ public class CracklTest {
 	@Test
 	public void testCallByReference(){
 		compare("cbr.crk", new String[]{"10","11"});
-	}
-	
-//	@Test
-	public void testConcurrency(){
-		compare("peterson.crk", new String[]{"2"});
 	}
 
 	/**
@@ -209,10 +220,7 @@ public class CracklTest {
 	public void compare(String fileName, String[] expected){
 		System.out.println("\nComparing the output of " + fileName + " to the expected output " + arrayToString(expected));
 		parseAndCompile(fileName);
-		readIn();
 		ArrayList<String> actual = null;
-
-		readIn();
 		actual = compileAndExecute(fileName);
 		if(!eq(expected, actual)){
 			fail(String.format("Expected %s, got %s.\n", arrayToString(expected),actual ));

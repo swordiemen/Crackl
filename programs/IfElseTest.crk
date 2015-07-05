@@ -7,7 +7,7 @@ Program{
 			if(i < 16){
 				int i = 10;
 			}else{
-				i = 20;
+				i = 33;
 			}
 		}else{
 			print("fail");

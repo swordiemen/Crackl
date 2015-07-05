@@ -1,0 +1,7 @@
+Program{
+	main{
+		boolean[3] a;
+		a[2] = true || false;
+		a[1] = "fail";
+	}
+}

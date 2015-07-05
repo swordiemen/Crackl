@@ -1,0 +1,28 @@
+Program {
+
+	main{
+		int a = 2;
+		int b = 6;
+		int aa = a + b;
+		int ab = a * b;
+		int ac = b / a;
+		int ad = b - a;
+		boolean t = true;
+		boolean f = false;
+		boolean ba = t || f;
+		boolean bb = t && f;
+		boolean bc = !t;
+		
+		int neg = 200 - 240;
+		
+		//8, 12, 3, 4, 1, 0, 0
+		print(aa);
+		print(ab);
+		print(ac);
+		print(ad);
+		
+		print(ba);
+		print(bb);
+		print(bc);
+	}
+}

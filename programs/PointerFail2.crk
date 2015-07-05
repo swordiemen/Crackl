@@ -1,0 +1,10 @@
+Program {
+
+	main{
+		int i = 10;
+		#int ptr_a = &i;
+		##int ptr_b => ptr_a;
+		i = i + @ptr_b;
+		print(i);
+	}
+}
