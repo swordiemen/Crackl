@@ -64,13 +64,20 @@ public class CracklTest {
 	@Test(timeout = 100 * 1000)
 	public void testParsefail()
 	{
-		fails("parsefail.crk");
+		//fails("parsefail.crk");
 	}
 
 	@Test(timeout = 10 * 1000)
 	public void testArrays()
 	{
 		succeeds("arrays.crk");
+		//Tests three forms of arrays, and an not-immediate initialized array
+		compare("arrays.crk", new String[]{
+			"stack:", "3", "6", "9",
+			"local heap:", "2", "4", "6", "8",
+			"shared heap:", "21", "22", "23", "24",
+			"uninitialized", "0", "4", "8", "12", "16", "20", "24", "28", "32", "36", "40", "44"
+		});
 	}
 
 	@Test(timeout = 10 * 1000)
@@ -122,7 +129,7 @@ public class CracklTest {
 		succeeds("pointers2.crk");
 	}
 
-	@Test(timeout = 10 * 1000)
+	@Test(timeout = 12 * 1000)
 	public void testStrings()
 	{
 		succeeds("strings.crk");
@@ -372,14 +379,23 @@ public class CracklTest {
 
 	public void readIn(){
 		String nextLine = null;
+		BufferedReader br = null ;
 		try {
-			BufferedReader br = new BufferedReader(new InputStreamReader(in));
+			br = new BufferedReader(new InputStreamReader(in));
 			while(in.available() > 0){
 				nextLine = br.readLine();
 				System.out.println("Error: " + nextLine);
 			}
 		} catch (IOException e1) {
 			e1.printStackTrace();
+		}finally{
+			if(br!=null){
+			try {
+					br.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
 		}
 	}
 	
