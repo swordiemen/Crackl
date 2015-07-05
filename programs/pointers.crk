@@ -4,7 +4,7 @@ Program {
 	int heapValue2 = 5;
 	int heapValue3 = 7;
 	
-	//Call by reference =D //
+	//Call by reference //
 	func int refFuncAdd(int toAdd, #int arg_ptr){
 		int oldvalue = @arg_ptr;
 		@arg_ptr = toAdd + oldvalue;

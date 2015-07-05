@@ -1,0 +1,6 @@
+Program {
+
+	main{
+		boolean f = true || 10;
+	}
+}

@@ -1,0 +1,7 @@
+Program {
+
+	main{
+		int i = 0;
+		#boolean fail_ptr => i;
+	}
+}

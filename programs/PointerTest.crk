@@ -1,0 +1,14 @@
+Program{
+	main{
+		int a = 100;
+		#int a_ptr => a;
+		##int a_ptr_ptr;
+		a_ptr_ptr = &a_ptr;
+		#int get = @a_ptr_ptr;
+		int getget = @get;
+		print(a);
+		boolean res = (@a_ptr - @get) == 0; // these should be equal
+		print(res);
+		print(getget);	
+	}
+}
