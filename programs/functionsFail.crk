@@ -1,0 +1,21 @@
+Program {
+	//this program should not pass the typechecker, because the params/arguments aren't right
+
+	func int add(boolean alot, int i){
+		if(alot){
+			i = i + 105;
+		}else{
+			i = i + 1;
+		}
+		return i;
+	}
+	
+	
+	main {
+		//should fail all three
+		add(10);
+		add(true, true);
+		add(3, 6);
+	}
+	
+}

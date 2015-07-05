@@ -1,28 +1,38 @@
 Program {
 
+	//testing return types and parameters, etc...
 	func int mult(int valA, int valB){
 		int result = valA;
 		while(valB>1){
 			result = result + valA;
 			valB = valB - 1;
 		}
-		print(result);
 		return result;
 	}
 	
-	//print n multiples of mult//
-	func int multiples(int n, int mult){
-		int i = 0;
-		while(i < (n+1)){
-			mult(mult, i);
-			i = i+1;
+	func int pow(int a, int pow){
+		int res = 1;
+		while(pow > 0){
+			res = mult(res, a);
+			pow = pow - 1;
 		}
-		return 9;
+		return res;
 	}
-
+	
+	//void function test, with text argument
+	func void printNPowersOf(int n, int base, text showHeader){
+		print(showHeader);
+		int i = 0;
+		while(i < n){
+			print(pow(base, i));
+			i = i + 1;
+		}
+		return;
+	}
 	
 	main {
-		multiples(3,3);
+		printNPowersOf(8, 2, "8 powers of 2 :)");
+		printNPowersOf(3, 12, "3 powers of 12!");
 	}
 	
 }

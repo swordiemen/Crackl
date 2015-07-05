@@ -4,7 +4,7 @@ program: PROGRAM_START numOfSprockell? stat;
 
 stat: GLOBAL? type ID  (ASSIGN expr)? SEMI  		#decl
 	| LOCK ID SEMI									#lockDecl
-	| GLOBAL? type ARRAY ID ASSIGN expr SEMI		#arrayDeclInit
+	| GLOBAL? type ID ASSIGN expr SEMI				#arrayDeclInit
 	| GLOBAL? type LSQ expr RSQ ID SEMI				#arrayDecl 
 	| GLOBAL? type ID (PTRASSIGN ID)? SEMI			#ptrDecl
 	| GLOBAL? type ID ASSIGN ID SEMI				#ptrDeclNormal

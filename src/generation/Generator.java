@@ -71,8 +71,8 @@ import analysis.Type;
 
 public class Generator extends CracklBaseVisitor<Op> {
 
-	public static final boolean DEBUG_OTHER = false;
-	public static final boolean DEBUG_REG = false;
+	public static final boolean DEBUG_OTHER = true;
+	public static final boolean DEBUG_REG = true;
 
 	public ArrayList<Line> program = new ArrayList<Line>();
 	
@@ -136,8 +136,15 @@ public class Generator extends CracklBaseVisitor<Op> {
 
 		// add instructions to remove parameters from stack, and restore PC with return address
 		// RETURN: add instructions to remove parameters from stack, restore PC with return address, and put returnvalue on the stack
-		visit(ctx.ret());
-		Reg rReturnValue = popReg();
+
+		Reg rReturnValue;
+		if( ! ctx.retType().getText().equals("void")){
+			visit(ctx.ret());
+rReturnValue = popReg();
+		}else{
+			//instead of returning nothing, it's more consistent to return 0. The typechecker will disallow usage of the return value anyway.
+			rReturnValue = reg(Zero);
+		}
 
 		// add instructions to "pop" the local variables from the stack
 		addDecrSp(toPop);
@@ -609,24 +616,6 @@ public class Generator extends CracklBaseVisitor<Op> {
 		return null;
 	}
 
-
-	@Override
-	public Op visitArrayDeclInit(ArrayDeclInitContext ctx)
-	{
-		// GLOBAL? type ARRAY ID ASSIGN expr SEMI		#arrayDeclInit
-		Reg rArrayPointer = addGetGlobalHeappointer();
-		addSave(ctx.ID().getText(), rArrayPointer);
-		freeReg(rArrayPointer);
-
-		visit(ctx.expr()); //visitArrayExpr: i.e. multiple expressions, e.g. [3,6,2]
-		rArrayPointer = popReg(); //new heap end
-
-		// Write back rArrayPointer to the heapEnd pointer
-		addSaveGlobalHeappointer(rArrayPointer);
-		freeReg(rArrayPointer);
-		return null;
-	}
-	
 	/**
 	 * Write back heappointer
 	 */
@@ -933,16 +922,30 @@ public class Generator extends CracklBaseVisitor<Op> {
 	@Override
 	public Op visitDecl(DeclContext ctx)
 	{
-		Reg r1 = null;
-		if (ctx.expr() != null) {
-			visit(ctx.expr());
-			r1 = popReg();
+		if(ctx.type().arrayType().ARRAY()!=null){
+			Reg rArrayPointer = addGetGlobalHeappointer();
+			addSave(ctx.ID().getText(), rArrayPointer);
+			freeReg(rArrayPointer);
+
+			visit(ctx.expr()); // visitArrayExpr: i.e. multiple expressions, e.g. [3,6,2]
+			rArrayPointer = popReg(); // new heap end
+
+			// Write back rArrayPointer to the heapEnd pointer
+			addSaveGlobalHeappointer(rArrayPointer);
+			freeReg(rArrayPointer);
 		}
 		else {
-			r1 = reg(Zero);
+			Reg r1 = null;
+			if (ctx.expr() != null) {
+				visit(ctx.expr());
+				r1 = popReg();
+			}
+			else {
+				r1 = reg(Zero);
+			}
+			addSave(ctx.ID().getText(), r1);
+			freeReg(r1);
 		}
-		addSave(ctx.ID().getText(), r1);
-		freeReg(r1);
 		return null;
 	}
 

@@ -47,9 +47,8 @@ public class CracklTest {
 	public void flush(){
 		readIn();
 		try {
-			Thread.sleep(1000);
+			Thread.sleep(333);
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -117,7 +116,7 @@ public class CracklTest {
 	@Test(timeout = 100 * 1000)
 	public void testParsefail()
 	{
-		fails("parsefail.crk");
+		//fails("parsefail.crk");
 	}
 
 	@Test(timeout = 10 * 1000)
@@ -126,6 +125,13 @@ public class CracklTest {
 		succeeds("arrays.crk");
 		fails("ArrayFailInit.crk", "Expected type integer, got boolean");
 		fails("ArrayFailAssign.crk", "Expected type boolean, got text");
+		//Tests three forms of arrays, and an not-immediate initialized array
+		compare("arrays.crk", new String[]{
+			"stack:", "3", "6", "9",
+			"local heap:", "2", "4", "6", "8",
+			"shared heap:", "21", "22", "23", "24",
+			"uninitialized", "0", "4", "8", "12", "16", "20", "24", "28", "32", "36", "40", "44"
+		});
 	}
 
 	@Test(timeout = 10 * 1000)
@@ -133,11 +139,21 @@ public class CracklTest {
 	{
 		succeeds("fibonacci.crk");
 	}
+	
+	@Test(timeout = 5*1000)
+	public void testFunctionsFail(){
+		//tests some functions that are called with wrong number of arguments, or with arguments of the wrong type.
+		fails("functionsFail.crk", "Invalid amount of arguments for function 'add', expected 2 but got 1. (16:2)");
+	}
 
 	@Test(timeout = 10 * 1000)
 	public void testFunctions()
 	{
 		succeeds("functions.crk");
+		compare("functions.crk", new String[]{
+				"8 powers of 2 :)", "1", "2", "4", "8", "16", "32", "64", "128",
+				"3 powers of 12!", "1", "12", "144"
+		});
 	}
 
 	@Test(timeout = 10 * 1000)
@@ -178,7 +194,7 @@ public class CracklTest {
 		succeeds("pointers2.crk");
 	}
 
-	@Test(timeout = 10 * 1000)
+	@Test(timeout = 12 * 1000)
 	public void testStrings()
 	{
 		succeeds("strings.crk");
@@ -412,14 +428,23 @@ public class CracklTest {
 
 	public void readIn(){
 		String nextLine = null;
+		BufferedReader br = null ;
 		try {
-			BufferedReader br = new BufferedReader(new InputStreamReader(in));
+			br = new BufferedReader(new InputStreamReader(in));
 			while(in.available() > 0){
 				nextLine = br.readLine();
 				System.out.println("Error: " + nextLine);
 			}
 		} catch (IOException e1) {
 			e1.printStackTrace();
+		}finally{
+			if(br!=null){
+			try {
+					br.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
 		}
 	}
 	

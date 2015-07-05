@@ -135,7 +135,7 @@ public class Compiler {
 	{
 		Compiler compiler = new Compiler();
 		try {
-			String program_name = "arrays.crk";
+			String program_name = "functions.crk";
 			Program program = compiler.compile(program_name);
 			compiler.write("crk_program.hs", program);
 		} catch (IOException e) {
