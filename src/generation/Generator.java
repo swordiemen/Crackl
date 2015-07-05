@@ -950,7 +950,7 @@ rReturnValue = popReg();
 	@Override
 	public Op visitDecl(DeclContext ctx)
 	{
-		if(ctx.type().arrayType().ARRAY()!=null){
+		if(ctx.type().arrayType() != null && ctx.type().arrayType().ARRAY()!=null){
 			Reg rArrayPointer = addGetGlobalHeappointer();
 			addSave(ctx.ID().getText(), rArrayPointer);
 			freeReg(rArrayPointer);
@@ -1057,7 +1057,7 @@ rReturnValue = popReg();
 			
 			//Negate number if negative, and print -
 			Reg rPos = getFreeReg();
-			add(Compute, operator(Gt), rNum, reg(Zero), rPos); //if gt 0, skip this part
+			add(Compute, operator(GtE), rNum, reg(Zero), rPos); //if gt 0, skip this part
 			int posBranchLine = addPlaceholder("negative branch line");
 			add(Compute, operator(Sub), reg(Zero), rNum, rNum); // minus minus = plus :)
 			add(Const, constOp(ASCII_MINUS), rPos); 
