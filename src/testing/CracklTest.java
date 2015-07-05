@@ -16,6 +16,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import compiler.Compiler;
+
 import exception.TypeCheckException;
 import generation.Program;
 
@@ -40,11 +41,18 @@ public class CracklTest {
 		System.setErr(new PrintStream(out));
 	}
 
-	@Test(timeout = 20 * 1000)
+	@Test(timeout = 10 * 1000)
 	public void testStandardFunctions()
 	{
 		String[] ee = { "0", "1", "1", "2", "3", "5", "8", "13", "21", "34", "55", "89", "144" };
 		compare("fibonacci.crk", ee);
+	}
+
+	@Test(timeout = 10 * 1000)
+	public void testBoolean()
+	{
+		String[] ee = { "0", "1", "1", "0", "1", "0", "0", "1", "1", "0", "1"};
+		compare("boolean.crk", ee);
 	}
 
 	@Test(timeout = 10 * 1000)
@@ -53,7 +61,7 @@ public class CracklTest {
 		fails("testje.crk", "not initialized");
 	}
 
-	@Test(timeout = 10 * 1000)
+	@Test(timeout = 100 * 1000)
 	public void testParsefail()
 	{
 		fails("parsefail.crk");
@@ -169,9 +177,9 @@ public class CracklTest {
 			sb.append("[");
 			for(int i = 0; i< strings.length; i++){
 				sb.append(strings[i]);
-				sb.append(" ");
+				sb.append(" ,");
 			}
-			sb.replace(sb.length() - 1, sb.length(), ""); //remove the last space
+			sb.replace(sb.length() - 2, sb.length(), ""); //remove the last comma space
 			sb.append("]");
 			return sb.toString();
 	}
@@ -188,6 +196,10 @@ public class CracklTest {
 		} catch (TypeCheckException e) {
 			readIn();
 			fail("File " + fileName + " should have parsed correctly, but didnt'.");
+			e.printStackTrace();
+		} catch (IOException e) {
+			readIn();
+			fail("File " + fileName + " couldn't be opened'.");
 			e.printStackTrace();
 		}
 	}
@@ -206,6 +218,10 @@ public class CracklTest {
 		} catch (TypeCheckException e) {
 			readIn();			
 			// should happen
+		} catch (IOException e) {
+			readIn();
+			fail("File " + fileName + " couldn't be opened'.");
+			e.printStackTrace();
 		}
 	}
 
@@ -236,13 +252,19 @@ public class CracklTest {
 						hasStr = true;
 					}
 				}
-			} catch (IOException e1) {
-				e1.printStackTrace();
-			}
+		} catch (IOException ioe) {
+			readIn();
+			fail("File " + fileName + " couldn't be opened'.");
+			ioe.printStackTrace();
+		}
 
 			if(!hasStr){
 				fail("Error stream didn't contain the error '" + expectedError + "'.");
 			}
+		} catch (IOException e) {
+			readIn();
+			fail("File " + fileName + " couldn't be opened'.");
+			e.printStackTrace();
 		}
 		finally{
 			System.setErr(System.err);
@@ -261,6 +283,10 @@ public class CracklTest {
 		} catch (TypeCheckException e) {
 			//e.printStackTrace();
 			fail("File " + fileName + " didn't parse.");
+		} catch (IOException e) {
+			readIn();
+			fail("File " + fileName + " couldn't be opened'.");
+			e.printStackTrace();
 		}
 		try {
 			compiler.write("crk_program.hs", prog);
