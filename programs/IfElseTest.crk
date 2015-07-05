@@ -1,0 +1,20 @@
+Program{
+	main{
+		boolean t = true;
+		boolean f = false;
+		int i = 16;
+		if(t || f){
+			if(i < 16){
+				int i = 10;
+			}else{
+				i = 20;
+			}
+		}else{
+			print("fail");
+		}	
+		if(f && t){
+			i = 0;
+		}
+		print(i); //should be 20
+	}
+}

@@ -12,11 +12,12 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Scanner;
 
+import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import compiler.Compiler;
-
 import exception.TypeCheckException;
 import generation.Program;
 
@@ -40,7 +41,38 @@ public class CracklTest {
 		// set the error stream to our own PrintStream, so we can go over it after we're done
 		System.setErr(new PrintStream(out));
 	}
+	
+	@After
+	public void flush(){
+		readIn();
+		try {
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
 
+	@Test(timeout = 10 * 1000)
+	public void testDeclAndAssigment(){
+		fails("WrongTypeAssignments.crk","Expected type");
+		fails("NotInitialized.crk", "not init");
+		compare("SimpleDeclAssign.crk", new String[]{"2", "0"});
+	}
+	
+	@Test(timeout = 10 * 1000)
+	public void testScopes(){
+		fails("DeclaringTwiceInScope.crk", "'c' already declared");
+		compare("ScopesTest.crk", new String[]{"2","4"});
+	}
+	
+	@Test(timeout = 10 * 1000)
+	public void testIfElse(){
+		fails("IfElseParseFail","Expected type boolean, got integer");
+		compare("IfElseTest.crk", new String[]{"20"});
+	}
+	
 	@Test(timeout = 10 * 1000)
 	public void testStandardFunctions()
 	{
@@ -155,7 +187,7 @@ public class CracklTest {
 		compare("cbr.crk", new String[]{"10","11"});
 	}
 	
-	//@Test
+//	@Test
 	public void testConcurrency(){
 		compare("peterson.crk", new String[]{"2"});
 	}
@@ -184,7 +216,7 @@ public class CracklTest {
 			sb.append("[");
 			for(int i = 0; i< strings.length; i++){
 				sb.append(strings[i]);
-				sb.append(" ,");
+				sb.append(", ");
 			}
 			sb.replace(sb.length() - 2, sb.length(), ""); //remove the last comma space
 			sb.append("]");
@@ -238,7 +270,7 @@ public class CracklTest {
 	 * @param expectedError The error that is expected to be returned.
 	 */
 	public void fails(String fileName, String expectedError){
-		System.out.println("\nTrying to see if " + fileName + " succeeds with error " + expectedError);
+		System.out.println("\nTrying to see if " + fileName + " fails with error '" + expectedError + "'.");
 		Compiler comp = new Compiler();
 		try {
 			comp.compile(fileName);

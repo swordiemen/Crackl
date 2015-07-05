@@ -169,7 +169,7 @@ public class TypeChecker extends CracklBaseListener {
 		Scope curScope = scopes.get(scopes.size()-1);
 		Type lhsType = getType(ctx.target());
 		checkType(ctx.expr(), lhsType);
-		curScope.addInitVar(ctx.getText());
+		curScope.addInitVar(ctx.target().getText());
 	}
 	
 	@Override
@@ -326,7 +326,7 @@ public class TypeChecker extends CracklBaseListener {
 
 		Scope curScope = scopes.get(scopes.size() - 1);
 		if(curScope.exists(var)){
-			addError(ctx, String.format(VARIABLE_NOT_INITIALIZED_ERROR, var));
+			addError(ctx, String.format(VARIABLE_ALREADY_DECLARED_ERROR, var));
 		}
 		Type lhsType = getTypeFromContext(ctx.type());
 		if(ctx.ID().size() > 1){
@@ -356,7 +356,7 @@ public class TypeChecker extends CracklBaseListener {
 		}
 		Scope curScope = scopes.get(scopes.size() - 1);
 		if(curScope.exists(var)){
-			addError(ctx, String.format(VARIABLE_NOT_INITIALIZED_ERROR, var));
+			addError(ctx, String.format(VARIABLE_ALREADY_DECLARED_ERROR, var));
 		}
 		
 		Pointer pointerType = (Pointer)getTypeFromContext(ctx.type());

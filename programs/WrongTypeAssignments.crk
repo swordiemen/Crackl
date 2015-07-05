@@ -1,0 +1,6 @@
+Program {
+	main{
+		int a = false;
+		boolean b = 2;
+	}
+}
