@@ -1,0 +1,6 @@
+Program {
+	main {
+		boolean b;
+		boolean res = b && false;
+	}
+}

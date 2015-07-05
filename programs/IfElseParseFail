@@ -1,0 +1,7 @@
+Program{
+	main{
+		if(1){
+			print("Incorrect");
+		}
+	}
+}

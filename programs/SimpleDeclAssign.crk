@@ -1,0 +1,9 @@
+Program{
+	main{
+		int testA;
+		testA = 2;
+		boolean b = false;
+		print(testA);
+		print(b);
+	}
+}
