@@ -1,6 +1,33 @@
 Program{
 
 	main{
+		//Test equality of other dataTypes (different types should be typechecked out)
+		text fail = "fail"; //should never be printed!
+		text success = "success";
+		int[3] arrA; //init to zero
+		int[3] arrB;
+		int[] arrC = [2,4,6];
+	
+		if(success == success){
+			print(success);
+		}
+
+		if("abc" == "abc"){
+			print(fail);
+		}
+
+		arrB = arrA;
+		if(arrA == arrB){
+			print(success);
+		}
+		if(arrA == arrC){
+			print(fail);
+		}
+
+
+		
+		
+		
 		boolean yes = true;
 		boolean no = false;
 		boolean notYes = !yes;
@@ -23,6 +50,7 @@ Program{
 		print(yes || yes);
 		print(no || no);
 		print(no || yes);
+		
 		
 	}
 

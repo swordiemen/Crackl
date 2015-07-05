@@ -71,10 +71,15 @@ public class Type {
 	@Override
 	public boolean equals(Object obj)
 	{	
-		return obj instanceof Type &&
-				((Type) obj).type.equals(this.type) && 
-				(isArray() == ((Type) obj).isArray()) &&
-				(isPointer() == ((Type) obj).isPointer());	
+		boolean result = obj instanceof Type;
+		result &= ((Type)obj).getType().equals(getType());
+		if(this.isArray()){
+			result &= ((Array)this).getTypeObj().equals(((Array)obj).getTypeObj());
+		}
+		if(this.isPointer()){
+			result &= ((Pointer)this).getTypeObj().equals(((Pointer)obj).getTypeObj());
+		}
+		return result;
 	}
 
 	/**

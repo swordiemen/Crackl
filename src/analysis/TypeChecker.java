@@ -56,6 +56,8 @@ import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTreeProperty;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
+import analysis.Type.Types;
+
 public class TypeChecker extends CracklBaseListener {
 	public static final String VOIDSTRING = "void";
 	
@@ -67,6 +69,8 @@ public class TypeChecker extends CracklBaseListener {
 	public static final String FUNCTION_VOID_RETURN_ERROR = "Function '%s' has a return expression, but its return type is void (should be just 'return;').";
 	public static final String FUNCTION_DOES_NOT_EXIST_ERROR = "Function '%s' does not exist.";
 	public static final String ID_NOT_ARRAY_ERROR = "Identifier '%s' is not an array.";
+	private static final String COMP_INCOMPARABLE_TYPES = "Variables of the type %s is not comparable with %s.";
+
 
 	ParseTreeProperty<Type> types;
 	ParseTreeProperty< ArrayList<Type>> paramTypes;
@@ -720,11 +724,17 @@ public class TypeChecker extends CracklBaseListener {
 	}
 	
 	@Override
-	public void exitCompExpr(CompExprContext ctx) {
-		if(checkType(ctx.expr(0), Type.INT) && checkType(ctx.expr(1), Type.INT)){
+	public void exitCompExpr(CompExprContext ctx)
+	{
+		Type t2 = getType(ctx.expr(1));
+		Type t1 = getType(ctx.expr(0));
+		if ((ctx.EQ()!=null && t1.equals(t2) && !t1.equals(Type.VOID) && !t1.equals(Type.ERR))
+			|| (checkType(ctx.expr(0), Type.INT) && checkType(ctx.expr(1), Type.INT))){
 			types.put(ctx, Type.BOOL);
 			result.addType(ctx, Type.BOOL);
-		}else{
+		}
+		else {
+			addError(ctx, String.format(COMP_INCOMPARABLE_TYPES, t1, t2));
 			types.put(ctx, Type.ERR);
 			result.addType(ctx, Type.ERR);
 		}
@@ -852,16 +862,25 @@ public class TypeChecker extends CracklBaseListener {
 
 	/**
 	 * Returns the Type of a given String (variable name).
-	 * @param var The name of the variable.
+	 * 
+	 * @param var
+	 *            The name of the variable.
 	 * @return type The type of the variable (or null if it hasn't been declared).
 	 */
 	public Type getTypeByString(String var)
 	{
+		// First check if it perhaps is a number listeral
+//		if (var.matches("-?\\d+(\\.\\d+)?")) {
+//			return Type.INT;
+//		}
+//		else {
+//
+//		}
 		Type type = null;
 		boolean found = false;
-		for(int i = scopes.size() - 1; i >= 0 && !found; i--){
+		for (int i = scopes.size() - 1; i >= 0 && !found; i--) {
 			Scope curScope = scopes.get(i);
-			if(curScope.exists(var)){
+			if (curScope.exists(var)) {
 				type = curScope.getType(var);
 				found = true;
 			}
@@ -872,7 +891,7 @@ public class TypeChecker extends CracklBaseListener {
 		}
 		return type;
 	}
-
+	
 	/**
 	 * Adds an error message to this TypeChecker.
 	 * @param s The error message.

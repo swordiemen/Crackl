@@ -829,9 +829,11 @@ rReturnValue = popReg();
 	public Op visitNegExpr(NegExprContext ctx)
 	{
 		visit(ctx.expr());
-		Reg rExpr = popReg();
-		add(Compute, operator(Sub), reg(Zero), rExpr, rExpr);
-		pushReg(rExpr);
+		if(ctx.SIGNOPERATOR().getText().equals("-")){
+			Reg rExpr = popReg();
+			add(Compute, operator(Sub), reg(Zero), rExpr, rExpr);
+			pushReg(rExpr);
+		}
 		return null;
 	}
 

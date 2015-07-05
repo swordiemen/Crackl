@@ -1,9 +1,34 @@
 Program{
 
+	func int pow(int a, int pow){
+		int res = 1;
+		while(pow > 0){
+			res = a * res;
+			pow = pow - 1;
+		}
+		return res;
+	}
+
 	main{
-		print(12-4);
+		//
 		print(4-12);
 		print(-15);
+		print(-8 % 3);
+		print(17/2);
+		print(3*19);
+
+		//operator precedence
+		print(-3+4*9);
+
+		//explicit signs
+		print(4*+3); 
+		print(4*-3);
+		
+		//parentheses precedence
+		print(4*(1+3));
+
+		print(pow(2, --(3+5)-1)); //func with exprs, double negation
 	}
+	
 	
 }

@@ -14,10 +14,10 @@ import java.util.Scanner;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import compiler.Compiler;
+
 import exception.TypeCheckException;
 import generation.Program;
 
@@ -89,10 +89,15 @@ public class CracklTest {
 	}
 	
 	@Test(timeout = 10 * 1000)
+	public void numOperatorsTest(){
+		compare("numOperators.crk", new String[]{ "-8", "-15", "1", "8", "57", "33", "12", "-12", "16", "128" }); 
+	}
+	
+	@Test(timeout = 10 * 1000)
 	public void testBankATM(){
 		succeeds("bank.crk");//output can differ, can't really test
 	}
-	
+
 	@Test(timeout = 10 * 1000)
 	public void testStandardFunctions()
 	{
@@ -103,7 +108,7 @@ public class CracklTest {
 	@Test(timeout = 10 * 1000)
 	public void testBoolean()
 	{
-		String[] ee = { "0", "1", "1", "0", "1", "0", "0", "1", "1", "0", "1"};
+		String[] ee = { "success", "success", "0", "1", "1", "0", "1", "0", "0", "1", "1", "0", "1"};
 		compare("boolean.crk", ee);
 	}
 
