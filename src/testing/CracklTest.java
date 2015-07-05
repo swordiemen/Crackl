@@ -46,7 +46,7 @@ public class CracklTest {
 	public void flush(){
 		readIn();
 		try {
-			Thread.sleep(1000);
+			Thread.sleep(200);
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -116,6 +116,13 @@ public class CracklTest {
 	public void testFibonacci()
 	{
 		succeeds("fibonacci.crk");
+	}
+	
+	@Test(timeout = 5*1000)
+	public void testFunctionsFail(){
+		//tests some functions that are called with wrong number of arguments, or with arguments of the wrong type.
+		fails("functionsFail", "Invalid amount of arguments for function 'add', expected 2 but got 1. (16:2)");
+		fails("functionsFail", "Expected type integer, got boolean. (17:2)."); 
 	}
 
 	@Test(timeout = 10 * 1000)

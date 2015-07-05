@@ -91,6 +91,7 @@ public class TypeChecker extends CracklBaseListener {
 		Scope newScope = scopes.get(scopes.size()-1);
 
 		List<TypeContext> types = ctx.type();
+		funcParams.put(currentFunction.id,new ArrayList<Type>());
 		for (int i = 0; i < types.size(); i++) {
 			TerminalNode idCtx = ctx.ID(i);
 			Type type = getTypeFromContext(ctx.type(i));
@@ -104,7 +105,10 @@ public class TypeChecker extends CracklBaseListener {
 			result.addNode(ctx);
 			
 			currentFunction.params.add(var);
+			 funcParams.get(currentFunction.id).add(type);
+			
 		}
+		//funcParams.put(currentFunction.id, currentFunction.params);
 	}
 
 	@Override
@@ -397,6 +401,8 @@ public class TypeChecker extends CracklBaseListener {
 		Type retType = Type.get(ctx.retType().getText());
 		boolean isVoid = retType == Type.VOID;
 		String functionName = ctx.ID().getText();
+
+		//funcParams.put(functionName, paramTypes.get(ctx.params()));
 //		
 //		for()
 		
@@ -428,7 +434,6 @@ public class TypeChecker extends CracklBaseListener {
 			}
 		}
 
-		funcParams.put(functionName, paramTypes.get(ctx.params()));
 		Scope removeScope = scopes.get(scopes.size() - 1);
 		scopes.remove(scopes.size() - 1);
 		result.addScope(ctx, removeScope);
@@ -528,23 +533,20 @@ public class TypeChecker extends CracklBaseListener {
 			addError(ctx, String.format(FUNCTION_DOES_NOT_EXIST_ERROR, funcName));
 		}else{
 			types.put(ctx, funcType);
-			//TODO: find good way to support calling a function Before exiting it's declaration (e.g. recursion or even reordered functions)
-			//return;
-			
-//			int funcParamsAmount = funcParams.get(funcName).size();
-//			int actualAmount = ctx.expr().size();
-//			if(funcParamsAmount != actualAmount){
-//				addError(ctx, String.format("Invalid amount of arguments for function '%s', expected %d but got %d.", funcName, funcParamsAmount, actualAmount));
-//			}else{
-//				for(int i = 0; i < actualAmount; i++){
-//					Type type = types.get(ctx.expr(i));
-//					if(type!=null){
-//						checkType(funcParams.get(funcName).get(i),type , ctx);
-//					}else{
-//						System.out.println("Warning: function referenced before declaration: "+funcName);
-//					}
-//				}
-//			}
+			int funcParamsAmount = funcParams.get(funcName).size();
+			int actualAmount = ctx.expr().size();
+			if(funcParamsAmount != actualAmount){
+				addError(ctx, String.format("Invalid amount of arguments for function '%s', expected %d but got %d.", funcName, funcParamsAmount, actualAmount));
+			}else{
+				for(int i = 0; i < actualAmount; i++){
+					Type type = types.get(ctx.expr(i));
+					if(type!=null){
+						checkType(funcParams.get(funcName).get(i),type , ctx);
+					}else{
+						System.out.println("Warning: function referenced before declaration: "+funcName);
+					}
+				}
+			}
 		}
 	}
 
