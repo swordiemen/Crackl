@@ -84,8 +84,8 @@ public class Generator extends CracklBaseVisitor<Op> {
 	/**
 	 * Debug switches, can be used to generate more, or less debug output on the stdinput
 	 */
-	public static final boolean DEBUG_OTHER = true;
-	public static final boolean DEBUG_REG = true;
+	public static final boolean DEBUG_OTHER = false;
+	public static final boolean DEBUG_REG = false;
 
 	/**
 	 * The actual program containing the instructions

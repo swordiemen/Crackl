@@ -11,7 +11,7 @@ Program {
 		}
 		else{
 			result = fib(n-1);
-			result =  fib(n-2) + result; // only head recursion...//
+			result =  fib(n-2) + result;
 		}
 		return result;
 	}

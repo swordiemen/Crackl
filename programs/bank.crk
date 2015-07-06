@@ -2,27 +2,25 @@
 //So the combined total in the accounts should be consistent before and after transactions. 
 //!Even when some transactions were blocked due to insufficient funds.
 
-
 //Specify the number of sprockells through this construct:
 Program(sprockells=2) {
 
 
-	//(Global identifier, so it's shared memory)
+	//(Global identifier, so it's in shared memory)
 	global int[] accounts = [60, 102];
 
 	//bank accounts (indices)
 	int tim = 0;
 	int willem = 1;
 	
-	//for each account a separate lock (so risk of deadlock)
+	//for each account a separate lock
 	lock lockWillem;
 	lock lockTim;
 	
-	func int transfer(int from, int to, int amount)
+	func void transfer(int from, int to, int amount)
 	{
 		lock(lockWillem);
 		lock(lockTim);
-		//indeed it would be a better test if also we'd supported arrays of locks, but for now we just use an obvious ordering in the locks.
 		int left = accounts[from];
 		if(left >= amount){
 			accounts[from] = accounts[from] - amount;
@@ -34,8 +32,8 @@ Program(sprockells=2) {
 		}
 		unlock(lockTim);
 		unlock(lockWillem);
-		return 0;
-}
+		return;
+	}
 
 	func int other(int sid){
 		int result = 0;
@@ -49,7 +47,7 @@ Program(sprockells=2) {
 	}
 
 	main {
-		//should be printed once
+		//This is printed only once
 		print("Starting ATM");
 		print("combined the accounts contain:");
 		print(accounts[tim] + accounts[willem]);
