@@ -2,16 +2,31 @@ package generation;
 
 import java.util.ArrayList;
 
+/**
+ * Program simply holds an list of Lines, and models a Sprockell program.
+ * 
+ */
 public class Program {
 
-	public int numberOfSprockells; //how many sprockells the program will run on
+	/**
+	 * How many sprockells the program will run on
+	 */
+	public int numberOfSprockells; 
+
+	/**
+	 * The instructions of the program
+	 */
 	public ArrayList<Line> programLines;
-	
+
 	public Program(ArrayList<Line> programLines, int numberOfSprockells) {
 		this.programLines = programLines;
 		this.numberOfSprockells = numberOfSprockells;
 	}
 
+	/**
+	 * create() can turn the list of instructions into an actual Sprockell program executable by Sprockell machine running on
+	 * Haskell.*
+	 */
 	public String create()
 	{
 		StringBuilder sb = new StringBuilder("import Sprockell.Sprockell\n" + "import Sprockell.System\n"

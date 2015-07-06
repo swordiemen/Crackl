@@ -1,6 +1,5 @@
 package analysis;
 
-import generation.Function;
 import grammar.CracklBaseListener;
 import grammar.CracklParser.AndExprContext;
 import grammar.CracklParser.ArrayAssignStatContext;

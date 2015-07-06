@@ -3,6 +3,9 @@ package generation;
 import machine.Op;
 import machine.Operand;
 
+/**
+ * Line models a line of Sprockell code, containing the Instruction that comes at this line, and also it's operands.
+ */
 public class Line {
 
 	Op.Instruction instruction;

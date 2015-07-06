@@ -1,6 +1,11 @@
 package machine;
 
 
+/**
+ * Operand specifies constructors for Operands of different types.
+ * @author willem
+ *
+ */
 public class Operand {
 	
 

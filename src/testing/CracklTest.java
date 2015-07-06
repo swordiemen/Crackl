@@ -13,12 +13,11 @@ import java.util.ArrayList;
 import java.util.Scanner;
 
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 
 import compiler.Compiler;
+
 import exception.TypeCheckException;
 import generation.Program;
 

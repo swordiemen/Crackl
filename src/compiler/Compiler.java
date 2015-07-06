@@ -1,5 +1,13 @@
 package compiler;
 
+import exception.TypeCheckException;
+import generation.Generator;
+import generation.Line;
+import generation.Program;
+import grammar.CracklLexer;
+import grammar.CracklParser;
+import grammar.CracklParser.ProgramContext;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -20,13 +28,6 @@ import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import analysis.ParseErrorListener;
 import analysis.Result;
 import analysis.TypeChecker;
-import exception.TypeCheckException;
-import generation.Generator;
-import generation.Line;
-import generation.Program;
-import grammar.CracklLexer;
-import grammar.CracklParser;
-import grammar.CracklParser.ProgramContext;
 
 public class Compiler {
 	public static final String PROGRAMS_PATH = "./programs/";
@@ -56,7 +57,7 @@ public class Compiler {
 		ParseTree tree = parse(fileName);
 		ParseTreeWalker walker = new ParseTreeWalker();
 		walker.walk(checker, tree);
-		if(errorListener.hasErrors()){
+		if (errorListener.hasErrors()) {
 			List<String> errors = errorListener.getErrors();
 			for (String error : errors) {
 				System.out.println("Error: " + error);
@@ -73,7 +74,7 @@ public class Compiler {
 			return program;
 		}
 		else {
-			for(String err : checker.getErrors()){
+			for (String err : checker.getErrors()) {
 				System.out.println(err);
 			}
 			throw new TypeCheckException("Build failed (TypeChecker)");
@@ -106,7 +107,7 @@ public class Compiler {
 		}
 		// if(errorListener.hasErrors()){
 		// throw new TypeCheckException("Parsing file " + fileName + " has failed.");
-			// }
+		// }
 		return tree;
 	}
 
@@ -135,7 +136,7 @@ public class Compiler {
 	{
 		Compiler compiler = new Compiler();
 		try {
-			String program_name = "PointerTest.crk";
+			String program_name = "testje.crk";
 			Program program = compiler.compile(program_name);
 			compiler.write("crk_program.hs", program);
 		} catch (IOException e) {

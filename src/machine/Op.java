@@ -3,8 +3,15 @@ package machine;
 import java.util.EnumSet;
 
 
+/**
+ * Op specifies which Instructions there are available, and which Operands exist for these Instructions
+ */
 public class Op {
 
+	/**
+	 * All registers to be used for general purpose operations, e.g. addition etc...
+	 * Excludes Zero, Spid etc...
+	 */
 	public static final EnumSet<Register> gpRegisters = EnumSet.of(Register.RegA, Register.RegB, Register.RegC, Register.RegD, Register.RegE); 
 
 	public enum Instruction {

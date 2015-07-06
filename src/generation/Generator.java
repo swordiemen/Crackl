@@ -66,33 +66,76 @@ import machine.Operand.Reg;
 
 import org.antlr.v4.runtime.tree.ParseTree;
 
+import analysis.Function;
 import analysis.MemoryLocation;
 import analysis.Result;
 import analysis.Scope;
 import analysis.Type;
 
+/**
+ * Generator can create a Sprockell program, based on a given Crackl program parsetree, and a typechecker result
+ * It's structure is: 
+ * 		visit* methods: overridden methods from CracklBaseVisitor. They add code for this tree node.
+ * 		add* methods: convenience methods that add commonly added code.
+ *
+ */
 public class Generator extends CracklBaseVisitor<Op> {
 
+	/**
+	 * Debug switches, can be used to generate more, or less debug output on the stdinput
+	 */
 	public static final boolean DEBUG_OTHER = true;
 	public static final boolean DEBUG_REG = true;
 
+	/**
+	 * The actual program containing the instructions
+	 */
 	public ArrayList<Line> program = new ArrayList<Line>();
 	
+	/**
+	 * A stack used for passing around registers between visitor methods. Useful when a 'super' visit call must know which registers it's 'sub' visit used
+	 */
 	private Stack<Register> regStack = new Stack<Register>();
+	
+	/**
+	 * A freelist for registers. Initially contains all general purpose registers (a - e). Can be used to get a register that is (sortof) guaruanteed to be free.
+	 */
 	private Stack<Register> freeRegisters = new Stack<Register>();
-	private HashMap<String, Function> functionTable; //Function name -> Function
+	
+	/**
+	 * Contains all functions in the program. Used to know which parameters are there, and also to which instruction Line to jump
+	 */
+	private HashMap<String, Function> functionTable; 
+	
+	/**
+	 * Indicates which scope the generator is currently in, so that it can lookup the right variables (memory positions)
+	 */
 	private Scope currentScope = null;
+	
+	/**
+	 * Result as passed in from the TypeChecker
+	 */
 	private Result result = null;
-	private HashMap<FuncCallContext, Integer> functionPlaceholders = new HashMap<FuncCallContext, Integer>(); //ctx -> line number of line where jump needs to happen
+	
+	/**
+	 *  Indicates lines that still need to have a jump instruction replaced, with the actual jump number
+	 *  ctx -> line number of line where jump needs to happen
+	 */
+	private HashMap<FuncCallContext, Integer> functionPlaceholders = new HashMap<FuncCallContext, Integer>(); 
 
-	/**Edge-case where e.g. return address and parameters are already being pushed on the stack.
-	 * It indicates how many spaces to skip *additionally* **/
+	/**
+	 * pushedDuringFunctionCallSetup - Edge-case where e.g. return address and parameters are already being pushed on the stack.
+	 * It indicates how many spaces on the stack to skip *additionally* 
+	 * **/
 	private int pushedDuringFunctionCallSetup = 0;
 
+	/**
+	 * For the joinSprockells, indicate where to jump to. This is calculated in the generator so not known at the start.
+	 */
 	private int branchJoinEndprog = -1;
 
 	public static final int STACK_SIZE = 128;
-	public static final int STACK_START = 0; //ehh...
+	public static final int STACK_START = 0; 
 	public static final int STACK_END = STACK_START + STACK_SIZE - 1;
 
 	public static final int LOCAL_HEAP_SIZE = 1024;
@@ -102,16 +145,381 @@ public class Generator extends CracklBaseVisitor<Op> {
 	public static final int GLOBAL_HEAP_START = LOCAL_HEAP_END + 1;
 	public static final int GLOBAL_HEAP_END = 16 * 1000 * 1000 - 1;
 	public static final int GLOBAL_HEAP_SIZE = GLOBAL_HEAP_START - GLOBAL_HEAP_END;
-	private static final char STRING_TERMINATOR = '$';
+	
+	/**
+	 * The null character is added to text, to indicate that the string is terminated 
+	 */
+	private static final char STRING_TERMINATOR = '\0';
 
-	// Location of the heap pointer (points to next free space on heap
+	/**
+	 * heappointers - Locations in memory where the allocater stores it's counter
+	 * This is the actual storage location, and the value at this location is the heappointer
+	 */
 	final int MEMADDR_LOCAL_HP = 32;
 	final int MEMADDR_GLOBAL_HP = 8096;
 
+	/**
+	 * @param result - A TypeChecker result
+	 * @param functionTable - a map from a function name to Function objects
+	 */
 	public Generator(Result result, HashMap<String, Function> functionTable) {
 		this.result = result;
 		this.functionTable = functionTable;
 		freeRegisters.addAll(Op.gpRegisters);
+	}
+	
+	/*
+	 * Add an instruction to the program. 
+	 */
+	private void add(Op.Instruction op, Operand... args)
+	{
+		Line line = new Line(op, args);
+		program.add(line);
+	}
+
+	/**
+	 * Saves the currently in use registers on the stack
+	 * @return which registers were saved
+	 */
+	public Register[] addSaveRegistersForFunction()
+	{
+		EnumSet<Register> usedRegisters = Op.gpRegisters.clone();
+		boolean removeAll = usedRegisters.removeAll(freeRegisters);
+		doAssert(removeAll);
+
+		Register[] inUse = usedRegisters.toArray(new Register[usedRegisters.size()]);
+
+		for (int i = 0; i < inUse.length; i++) {
+			add(Push, reg(inUse[i]));
+		}
+		return inUse;
+	}
+
+	/**
+	 * Restore saved registers for a function call
+	 * @param preservedRegisters - which registers to restore
+	 */
+	public void addPopPreservedRegisters(Register[] preservedRegisters)
+	{
+		for (int i = preservedRegisters.length - 1; i >= 0; i--) {
+			add(Pop, reg(preservedRegisters[i]));
+		}
+	}
+	
+	
+		/**
+	 * Add instructions to retrieve the base address of some array, given a variable name Leaks a register!
+	 * @param variable
+	 * @return register containing the base address (on the heap) of an array
+	 */
+	private Reg addGetArrayPointer(String variable)
+	{
+		MemoryLocation loc = currentScope.getMemLoc(variable);
+		Reg rArrayPointer = getFreeReg();
+		add(Read, memAddr(loc.getScopeOffset() + loc.getVarOffset()));
+		add(Receive, rArrayPointer);
+		return rArrayPointer;
+	}
+
+	/**
+	 * Adds instructions to allocate an array on the GLOBAL heap Note: it consumes a registers, which is free'd implicitly!
+	 * 
+	 * @param rArraySize *            - Register containing the size of the array
+	 * @param variableName *            - Where (which variable) to store the array starting pointer
+	 */
+	private void addAllocateGlobal(Reg rArraySize, String variableName)
+	{
+		// Retrieve heappointer
+		Reg rHeapPointer = addGetGlobalHeappointer();
+
+		// Store current heappointer at at variable
+		addSave(variableName, rHeapPointer);
+
+		// Increase and write back changed heappointer
+		addIncrementHeappointer(rArraySize, rHeapPointer);
+	}
+//
+	/**
+	 * Increments and writes back the heap pointer Note: it consumes two registers, both of which are free'd implicitly
+	 * @param rArraySize - Register containing the size of the array
+	 * @param rHeapPointer - Register containing the current end of the heap
+	 */
+	private void addIncrementHeappointer(Reg rArraySize, Reg rHeapPointer)
+	{
+		add(Compute, operator(Add), rArraySize, rHeapPointer, rHeapPointer);
+		add(Write, rHeapPointer, memAddr(MEMADDR_GLOBAL_HP));// maybe TODO: test and set?
+		freeReg(rArraySize);
+		freeReg(rHeapPointer);
+	}
+
+	/**
+	 * @return - register containing the heappointer
+	 */
+	private Reg addGetGlobalHeappointer()
+	{
+		Reg rHeapPointer = getFreeReg();
+		add(Read, memAddr(MEMADDR_GLOBAL_HP));
+		add(Receive, rHeapPointer);
+		return rHeapPointer;
+	}
+
+	/**
+	 * Adds instructions to save a registers to a variable
+	 */
+	private void addSave(String variable, Reg reg)
+	{
+		MemoryLocation loc = currentScope.getMemLoc(variable);
+		if (loc.isLocal()) {
+			if (loc.isOnStack()) {
+				// relative
+				Reg rLoc = getFreeReg();
+				int stackOffset = currentScope.getStackOffset(variable);
+				stackOffset+=pushedDuringFunctionCallSetup; //Edge-case where e.g. return address and parameters are already being pushed on the stack...
+				add(Const, constOp(stackOffset), rLoc);
+				add(Compute, operator(Add), reg(SP), rLoc, rLoc);
+				add(Store, reg, deref(rLoc));
+				freeReg(rLoc);
+			}
+			else {
+				// absolute
+				add(Store, reg, addr(loc.getScopeOffset(), loc.getVarOffset()));
+			}
+		}
+		else if (loc.isGlobal()) {
+			add(Write, reg, addr(loc.getScopeOffset(), loc.getVarOffset())); // store start address on stack at variable
+		}
+		else {
+			throw new IllegalArgumentException("Neither global nor local!");
+		}
+	}
+
+	/**
+	 * @return memory address, depending on whether it's on stack etc...
+	 */
+	public int addLoadInto(String variable, Reg reg)
+	{
+		MemoryLocation loc = currentScope.getMemLoc(variable);
+		if (loc.isLocal()) {
+			if(loc.isOnStack()){
+				//relative
+				Reg rLoc = getFreeReg();
+				int stackOffset = currentScope.getStackOffset(variable);
+				stackOffset+=pushedDuringFunctionCallSetup; //Edge-case where e.g. return address and parameters are already being pushed on the stack...
+				add(Const, constOp(stackOffset), rLoc);
+				add(Compute, operator(Add), reg(SP), rLoc, rLoc);
+				add(Load, deref(rLoc), reg);
+				freeReg(rLoc);
+				return stackOffset;
+			}else{
+				//on local heap, absolute
+				add(Load, memAddr(loc.getTotalOffset()), reg);
+				return loc.getTotalOffset();
+			}
+		}
+		else if (loc.isGlobal()) {
+			add(Read, memAddr(loc.getTotalOffset()));
+			add(Receive, reg);
+			return loc.getTotalOffset();
+		}
+		else {
+			throw new IllegalArgumentException("Neither global nor local!");
+		}
+	}/**
+	 * Adds instructions to effectively pop n variables from the stack
+	 */
+	private void addDecrSp(int toPop)
+	{
+		Reg r1 = getFreeReg();
+		add(Const, constOp(toPop), r1);
+		add(Compute, operator(Add), reg(Op.Register.SP), r1, reg(Op.Register.SP));
+		freeReg(r1);
+	}
+
+	/**
+	 * based on some stats, reserve stack space, for local variables
+	 * @param stats
+	 * @return
+	 */
+	private int addReserveForLocalVariables(List<StatContext> stats)
+	{
+		// first iteration: check for variables that are to be declared in this
+		// block, and reserve some stack space
+		// this sort of simulates 'moving variables declarations to the top of
+		// the scope'
+		// Type checking makes sure we don't use unassigned and undeclared
+		// variables
+		int toPop = 0;
+		for (StatContext child : stats) {
+			if (child instanceof DeclContext) {
+				// reserve some space on the stack, to allow for future write
+				reserveStackSpace(((DeclContext) child).ID().getText());
+				toPop++;
+			}
+			else if (child instanceof PtrDeclContext) {
+				reserveStackSpace(((PtrDeclContext) child).ID(0).getText());
+				toPop++;
+			}
+			else if (child instanceof PtrDeclNormalContext) {
+				reserveStackSpace(((PtrDeclNormalContext) child).ID(0).getText());
+				toPop++;
+			}
+		}
+		return toPop;
+	}
+	/**
+	 * Add instructions to get the reference to 'variable', and put it inside a register
+	 * @param variable - Name of which variable's memory address to store in a register
+	 * @return Reg containing the reference to the variable
+	 */
+	private Reg addReferVariableIntoReg(String variable)
+	{
+		Reg rLoc;
+		rLoc = getFreeReg();
+		MemoryLocation assignLoc = currentScope.getMemLoc(variable);
+		if (assignLoc.isGlobal()) {
+			int totalOffset = assignLoc.getTotalOffset();
+			add(Const, constOp(totalOffset), rLoc);
+		}
+		else {
+			if (assignLoc.isOnStack()) {
+				int totalOffset = currentScope.getStackOffset(variable);
+				totalOffset += pushedDuringFunctionCallSetup;
+				add(Const, constOp(totalOffset), rLoc);
+				add(Compute, operator(Add), reg(SP), rLoc, rLoc);
+				// throw new IllegalArgumentException("No pointers to stack variables allowed!");
+			}
+			else {
+				int totalOffset = assignLoc.getTotalOffset();
+				add(Const, constOp(totalOffset), rLoc);
+			}
+		}
+		return rLoc;
+	}
+
+	public Reg addDeref(String id)
+	{
+		// doAssert(memoryAddress >= 0 && memoryAddress < GLOBAL_HEAP_END);
+		Reg rLoc = getFreeReg();
+		addLoadInto(id, rLoc);
+
+		Reg rCmp = getFreeReg();
+		Reg rConst = getFreeReg();
+		add(Const, constOp(LOCAL_HEAP_SIZE), rConst);
+		add(Compute, operator(GtE), rLoc, rConst, rCmp);
+		int branchLine = addPlaceholder("deref branchLine");
+
+		// from local memory
+		add(Load, deref(rLoc), rLoc);
+		int jumpToEndLine = addPlaceholder("deref jump to end");
+		int elseLine = program.size();
+		changeAt(branchLine, Branch, rCmp, abs(elseLine));
+
+		// from global memory
+		add(Read, deref(rLoc));
+		add(Receive, rLoc);
+
+		int nextEnterLine = program.size();
+
+		changeAt(jumpToEndLine, Jump, abs(nextEnterLine));
+
+		freeReg(rCmp);
+		freeReg(rConst);
+		// (no need to push, this is handled in visitPtrDerefExpr)
+
+		return rLoc;
+	}
+	/**
+	 * Write back heappointer
+	 */
+	private void addSaveLocalHeappointer(Reg rHp)
+	{
+		add(Write, rHp, memAddr(MEMADDR_LOCAL_HP));
+	}
+
+	private void addSaveGlobalHeappointer(Reg rHp)
+	{
+		add(Write, rHp, memAddr(MEMADDR_GLOBAL_HP));
+	}
+
+
+	public void changeAt(int lineNr, Op.Instruction op, Operand... args)
+	{
+		if (program.get(lineNr) instanceof Label) {
+			program.set(lineNr, new Line(op, args));
+		}
+		else {
+			throw new ClassCastException("changeAt: NOT A LABEL!!!");
+		}
+	}
+
+	public int addPlaceholder(String s)
+	{
+		int location = program.size();
+		program.add(new Label(s));
+		return location;
+	}
+
+	public int addPlaceholder()
+	{
+		return addPlaceholder("Placeholder!");
+	}
+
+	private Reg popReg()
+	{
+		Reg reg = reg(regStack.pop());
+		return reg;
+	}
+
+	private void freeReg(Reg r)
+	{
+		debugReg("Free : " + r.name);
+		doAssert(!regStack.contains(r.reg));
+		doAssert(!freeRegisters.contains(r.reg));
+		if (Op.gpRegisters.contains(r.reg)) {
+			freeRegisters.push(r.reg);
+		}
+	}
+
+	private void pushReg(Reg r)
+	{
+		regStack.push(r.reg);
+	}
+
+	private Reg getFreeReg()
+	{
+		debugReg("currently free : " + freeRegisters);
+		Register reg = freeRegisters.pop();
+		debugReg("Get: " + reg);
+		return reg(reg);
+	}
+
+	/**
+	 * Adds instructions to wait until the lock with 'name' is obtained
+	 */
+	private void addObtainLock(String name)
+	{
+		Reg rLockAddress = getFreeReg();
+		int lockAddress = result.getStaticGlobals().get(name);
+		add(Const, constOp(lockAddress), rLockAddress);
+
+		Reg rIsLocked = getFreeReg();
+		int retryLine = program.size();
+		add(TestAndSet, deref(rLockAddress));
+		add(Receive, rIsLocked);
+		add(Compute, operator(Equal), reg(Zero), rIsLocked, rIsLocked);
+		add(Branch, rIsLocked, abs(retryLine));
+		freeReg(rLockAddress);
+		freeReg(rIsLocked);
+	}
+	
+	private void addReleaseLock(String name){
+		Reg rLockAddress = getFreeReg();
+		int lockAddress = result.getStaticGlobals().get(name);
+		add(Const, constOp(lockAddress), rLockAddress);
+
+		add(Write, reg(Zero), deref(rLockAddress));
+		freeReg(rLockAddress);
+	
 	}
 	
 
@@ -140,11 +548,13 @@ public class Generator extends CracklBaseVisitor<Op> {
 		// RETURN: add instructions to remove parameters from stack, restore PC with return address, and put returnvalue on the stack
 
 		Reg rReturnValue;
-		if( ! ctx.retType().getText().equals("void")){
+		if (!ctx.retType().getText().equals("void")) {
 			visit(ctx.ret());
-rReturnValue = popReg();
-		}else{
-			//instead of returning nothing, it's more consistent to return 0. The typechecker will disallow usage of the return value anyway.
+			rReturnValue = popReg();
+		}
+		else {
+			// instead of returning nothing, it's more consistent to return 0. The typechecker will disallow usage of the return value
+			// anyway.
 			rReturnValue = reg(Zero);
 		}
 
@@ -175,33 +585,13 @@ rReturnValue = popReg();
 		pushReg(rReturnValue);
 		return null;
 	}
-	
-	public Register[] addPushAllRegisters(){
-		EnumSet<Register> usedRegisters = Op.gpRegisters.clone();
-		boolean removeAll = usedRegisters.removeAll(freeRegisters);
-		doAssert(removeAll);
 
-		Register[] inUse = usedRegisters.toArray(new Register[usedRegisters.size()]);
-
-		for(int i = 0; i<inUse.length; i++){
-			add(Push, reg(inUse[i]));
-		}
-		return inUse;
-	}
-	
-	public void addPopPreservedRegisters(Register[] preservedRegisters){
-		for(int i = preservedRegisters.length-1; i>=0; i--){
-			add(Pop, reg(preservedRegisters[i]));
-		}
-		
-	}
-	
 	@Override
 	public Op visitFuncCall(FuncCallContext ctx)
 	{
 		// funcCall: ID LPAR expr RPAR;
 		//first pushing all registers on the stack for preservation
-		Register[] preservedRegisters = addPushAllRegisters();
+		Register[] preservedRegisters = addSaveRegistersForFunction();
 		
 		//add instructions to push return address on the stack: current PC + skipConstant
 		Reg rReturnAddress = getFreeReg();
@@ -308,43 +698,7 @@ rReturnValue = popReg();
 		return null;
 	}
 	
-	/**
-	 * Adds instructions to effectively pop n variables from the stack
-	 */
-	private void addDecrSp(int toPop)
-	{
-		Reg r1 = getFreeReg();
-		add(Const, constOp(toPop), r1);
-		add(Compute, operator(Add), reg(Op.Register.SP), r1, reg(Op.Register.SP));
-		freeReg(r1);
-	}
-
-	private int addReserveForLocalVariables(List<StatContext> stats)
-	{
-		// first iteration: check for variables that are to be declared in this
-		// block, and reserve some stack space
-		// this sort of simulates 'moving variables declarations to the top of
-		// the scope'
-		// Type checking makes sure we don't use unassigned and undeclared
-		// variables
-		int toPop = 0;
-		for (StatContext child : stats) {
-			if (child instanceof DeclContext) {
-				// reserve some space on the stack, to allow for future write
-				reserveStackSpace(((DeclContext) child).ID().getText());
-				toPop++;
-			}
-			else if (child instanceof PtrDeclContext) {
-				reserveStackSpace(((PtrDeclContext) child).ID(0).getText());
-				toPop++;
-			}
-			else if (child instanceof PtrDeclNormalContext) {
-				reserveStackSpace(((PtrDeclNormalContext) child).ID(0).getText());
-				toPop++;
-			}
-		}
-		return toPop;
-	}
+	
 
 	@Override
 	public Op visitPtrDecl(PtrDeclContext ctx)
@@ -363,35 +717,7 @@ rReturnValue = popReg();
 		return null;
 	}
 
-	/**
-	 * Add instructions to get the reference to 'variable', and put it inside a register
-	 * @param variable - Name of which variable's memory address to store in a register
-	 * @return Reg containing the reference to the variable
-	 */
-	private Reg addReferVariableIntoReg(String variable)
-	{
-		Reg rLoc;
-		rLoc = getFreeReg();
-		MemoryLocation assignLoc = currentScope.getMemLoc(variable);
-		if (assignLoc.isGlobal()) {
-			int totalOffset = assignLoc.getTotalOffset();
-			add(Const, constOp(totalOffset), rLoc);
-		}
-		else {
-			if (assignLoc.isOnStack()) {
-				int totalOffset = currentScope.getStackOffset(variable);
-				totalOffset += pushedDuringFunctionCallSetup;
-				add(Const, constOp(totalOffset), rLoc);
-				add(Compute, operator(Add), reg(SP), rLoc, rLoc);
-				// throw new IllegalArgumentException("No pointers to stack variables allowed!");
-			}
-			else {
-				int totalOffset = assignLoc.getTotalOffset();
-				add(Const, constOp(totalOffset), rLoc);
-			}
-		}
-		return rLoc;
-	}
+
 
 	@Override
 	public Op visitPtrDeclNormal(PtrDeclNormalContext ctx)
@@ -431,39 +757,8 @@ rReturnValue = popReg();
 		pushReg(rLoc); // is actually rReceiveValue...
 		return null;
 	}
-
-	public Reg addDeref(String id)
-	{
-		// doAssert(memoryAddress >= 0 && memoryAddress < GLOBAL_HEAP_END);
-		Reg rLoc = getFreeReg();
-		addLoadInto(id, rLoc);
-
-		Reg rCmp = getFreeReg();
-		Reg rConst = getFreeReg();
-		add(Const, constOp(LOCAL_HEAP_SIZE), rConst);
-		add(Compute, operator(GtE), rLoc, rConst, rCmp);
-		int branchLine = addPlaceholder("deref branchLine");
-
-		// from local memory
-		add(Load, deref(rLoc), rLoc);
-		int jumpToEndLine = addPlaceholder("deref jump to end");
-		int elseLine = program.size();
-		changeAt(branchLine, Branch, rCmp, abs(elseLine));
-
-		// from global memory
-		add(Read, deref(rLoc));
-		add(Receive, rLoc);
-
-		int nextEnterLine = program.size();
-
-		changeAt(jumpToEndLine, Jump, abs(nextEnterLine));
-
-		freeReg(rCmp);
-		freeReg(rConst);
-		// (no need to push, this is handled in visitPtrDerefExpr)
-
-		return rLoc;
-	}
+	
+	
 
 	@Override
 	public Op visitAssignDeref(AssignDerefContext ctx)
@@ -501,66 +796,6 @@ rReturnValue = popReg();
 		// (no need to push, this is handled in visitPtrDerefExpr)
 
 		return null;
-	}
-
-	private void addSave(String variable, Reg reg)
-	{
-		MemoryLocation loc = currentScope.getMemLoc(variable);
-		if (loc.isLocal()) {
-			if (loc.isOnStack()) {
-				// relative
-				Reg rLoc = getFreeReg();
-				int stackOffset = currentScope.getStackOffset(variable);
-				stackOffset+=pushedDuringFunctionCallSetup; //Edge-case where e.g. return address and parameters are already being pushed on the stack...
-				add(Const, constOp(stackOffset), rLoc);
-				add(Compute, operator(Add), reg(SP), rLoc, rLoc);
-				add(Store, reg, deref(rLoc));
-				freeReg(rLoc);
-			}
-			else {
-				// absolute
-				add(Store, reg, addr(loc.getScopeOffset(), loc.getVarOffset()));
-			}
-		}
-		else if (loc.isGlobal()) {
-			add(Write, reg, addr(loc.getScopeOffset(), loc.getVarOffset())); // store start address on stack at variable
-		}
-		else {
-			throw new IllegalArgumentException("Neither global nor local!");
-		}
-	}
-
-	/**
-	 * @return memory address, depending on whether it's on stack etc...
-	 */
-	public int addLoadInto(String variable, Reg reg)
-	{
-		MemoryLocation loc = currentScope.getMemLoc(variable);
-		if (loc.isLocal()) {
-			if(loc.isOnStack()){
-				//relative
-				Reg rLoc = getFreeReg();
-				int stackOffset = currentScope.getStackOffset(variable);
-				stackOffset+=pushedDuringFunctionCallSetup; //Edge-case where e.g. return address and parameters are already being pushed on the stack...
-				add(Const, constOp(stackOffset), rLoc);
-				add(Compute, operator(Add), reg(SP), rLoc, rLoc);
-				add(Load, deref(rLoc), reg);
-				freeReg(rLoc);
-				return stackOffset;
-			}else{
-				//on local heap, absolute
-				add(Load, memAddr(loc.getTotalOffset()), reg);
-				return loc.getTotalOffset();
-			}
-		}
-		else if (loc.isGlobal()) {
-			add(Read, memAddr(loc.getTotalOffset()));
-			add(Receive, reg);
-			return loc.getTotalOffset();
-		}
-		else {
-			throw new IllegalArgumentException("Neither global nor local!");
-		}
 	}
 	
 	@Override
@@ -618,19 +853,7 @@ rReturnValue = popReg();
 		return null;
 	}
 
-	/**
-	 * Write back heappointer
-	 */
-	private void addSaveLocalHeappointer(Reg rHp)
-	{
-		add(Write, rHp, memAddr(MEMADDR_LOCAL_HP));
-	}
-
-	private void addSaveGlobalHeappointer(Reg rHp)
-	{
-		add(Write, rHp, memAddr(MEMADDR_GLOBAL_HP));
-	}
-
+	
 	@Override
 	public Op visitArrayDecl(ArrayDeclContext ctx)
 	{
@@ -639,72 +862,6 @@ rReturnValue = popReg();
 		addAllocateGlobal(rArraySize, ctx.ID().getText());
 		return null;
 	}
-
-	/**
-	 * Add instructions to retrieve the base address of some array, given a variable name Leaks a register!
-	 * @param variable
-	 * @return register containing the base address (on the heap) of an array
-	 */
-	private Reg addGetArrayPointer(String variable)
-	{
-		MemoryLocation loc = currentScope.getMemLoc(variable);
-		Reg rArrayPointer = getFreeReg();
-		add(Read, memAddr(loc.getScopeOffset() + loc.getVarOffset()));
-		add(Receive, rArrayPointer);
-		return rArrayPointer;
-	}
-
-	/**
-	 * Adds instructions to allocate an array on the GLOBAL heap Note: it consumes a registers, which is free'd implicitly!
-	 * 
-	 * @param rArraySize *            - Register containing the size of the array
-	 * @param variableName *            - Where (which variable) to store the array starting pointer
-	 */
-	private void addAllocateGlobal(Reg rArraySize, String variableName)
-	{
-		// Retrieve heappointer
-		Reg rHeapPointer = addGetGlobalHeappointer();
-
-		// Store current heappointer at at variable
-		addSave(variableName, rHeapPointer);
-
-		// Increase and write back changed heappointer
-		addIncrementHeappointer(rArraySize, rHeapPointer);
-	}
-//
-	/**
-	 * Increments and writes back the heap pointer Note: it consumes two registers, both of which are free'd implicitly
-	 * @param rArraySize - Register containing the size of the array
-	 * @param rHeapPointer - Register containing the current end of the heap
-	 */
-	private void addIncrementHeappointer(Reg rArraySize, Reg rHeapPointer)
-	{
-		add(Compute, operator(Add), rArraySize, rHeapPointer, rHeapPointer);
-		add(Write, rHeapPointer, memAddr(MEMADDR_GLOBAL_HP));// maybe TODO: test and set?
-		freeReg(rArraySize);
-		freeReg(rHeapPointer);
-	}
-
-	/**
-	 * Add instructions to put the current heap pointer (end of heap) in a register
-	 * 
-	 * @return register containing the read pointer
-	 */
-	private Reg addGetLocalHeappointer()
-	{
-		Reg rHeapPointer = getFreeReg();
-		add(Load, memAddr(MEMADDR_LOCAL_HP), rHeapPointer);
-		return rHeapPointer;
-	}
-
-	private Reg addGetGlobalHeappointer()
-	{
-		Reg rHeapPointer = getFreeReg();
-		add(Read, memAddr(MEMADDR_GLOBAL_HP));
-		add(Receive, rHeapPointer);
-		return rHeapPointer;
-	}
-
 
 	@Override
 	public Op visitArrayAssignStat(ArrayAssignStatContext ctx)
@@ -883,63 +1040,13 @@ rReturnValue = popReg();
 		return null;
 	}
 
-	public void changeAt(int lineNr, Op.Instruction op, Operand... args)
-	{
-		if (program.get(lineNr) instanceof Label) {
-			program.set(lineNr, new Line(op, args));
-		}
-		else {
-			throw new ClassCastException("changeAt: NOT A LABEL!!!");
-		}
-	}
-
-	public int addPlaceholder(String s)
-	{
-		int location = program.size();
-		program.add(new Label(s));
-		return location;
-	}
-
-	public int addPlaceholder()
-	{
-		return addPlaceholder("Placeholder!");
-	}
-
-	private Reg popReg()
-	{
-		Reg reg = reg(regStack.pop());
-		return reg;
-	}
 	
 	@Override
 	public Op visitSprockellIdExpr(SprockellIdExprContext ctx)
 	{
 		pushReg(reg(Register.SPID));
 		return null;
-	}
-
-	private void freeReg(Reg r)
-	{
-		debugReg("Free : " + r.name);
-		doAssert(!regStack.contains(r.reg));
-		doAssert(!freeRegisters.contains(r.reg));
-		if (Op.gpRegisters.contains(r.reg)) {
-			freeRegisters.push(r.reg);
-		}
-	}
-
-	private void pushReg(Reg r)
-	{
-		regStack.push(r.reg);
-	}
-
-	private Reg getFreeReg()
-	{
-		debugReg("currently free : " + freeRegisters);
-		Register reg = freeRegisters.pop();
-		debugReg("Get: " + reg);
-		return reg(reg);
-	}
+	}	
 
 	@Override
 	public Op visit(ParseTree tree)
@@ -1218,34 +1325,6 @@ rReturnValue = popReg();
 		freeReg(rUnjoined);
 		return null;
 	}
-
-	/**
-	 * Adds instructions to wait until the lock with 'name' is obtained
-	 */
-	private void addObtainLock(String name)
-	{
-		Reg rLockAddress = getFreeReg();
-		int lockAddress = result.getStaticGlobals().get(name);
-		add(Const, constOp(lockAddress), rLockAddress);
-
-		Reg rIsLocked = getFreeReg();
-		int retryLine = program.size();
-		add(TestAndSet, deref(rLockAddress));
-		add(Receive, rIsLocked);
-		add(Compute, operator(Equal), reg(Zero), rIsLocked, rIsLocked);
-		add(Branch, rIsLocked, abs(retryLine));
-		freeReg(rLockAddress);
-		freeReg(rIsLocked);
-	}
-	
-	private void addReleaseLock(String name){
-		Reg rLockAddress = getFreeReg();
-		int lockAddress = result.getStaticGlobals().get(name);
-		add(Const, constOp(lockAddress), rLockAddress);
-
-		add(Write, reg(Zero), deref(rLockAddress));
-		freeReg(rLockAddress);
-	}
 	
 	@Override
 	public Op visitLockDecl(LockDeclContext ctx)
@@ -1369,18 +1448,17 @@ rReturnValue = popReg();
 		return null;
 	}
 
-	private void add(Op.Instruction op, Operand... args)
-	{
-		Line line = new Line(op, args);
-		program.add(line);
-	}
-
 	private static void doAssert(boolean b)
 	{
 		if (!b) {
 			throw new IllegalArgumentException("ASSERTION FAILED!");
 		}
 	}
+
+	/**========
+	 * Below are several convenience methods for instantiating registers, memaddrs etc...
+	 * =========
+	 */
 
 	private static Reg reg(Register r)
 	{
