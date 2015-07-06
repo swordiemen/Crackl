@@ -1,23 +1,41 @@
+//This test will simulate a bank account. The assertion is made that NO money disappears or comes to existence.
+//So the combined total in the accounts should be consistent before and after transactions. 
+//!Even when some transactions were blocked due to insufficient funds.
+
+
+//Specify the number of sprockells through this construct:
 Program(sprockells=2) {
 
-	lock lockA;
-	global int[] accounts = [100, 25];
+
+	//(Global identifier, so it's shared memory)
+	global int[] accounts = [60, 102];
+
+	//bank accounts (indices)
+	int tim = 0;
+	int willem = 1;
+	
+	//for each account a separate lock (so risk of deadlock)
+	lock lockWillem;
+	lock lockTim;
 	
 	func int transfer(int from, int to, int amount)
 	{
-		lock(lockA);
+		lock(lockWillem);
+		lock(lockTim);
+		//indeed it would be a better test if also we'd supported arrays of locks, but for now we just use an obvious ordering in the locks.
 		int left = accounts[from];
 		if(left >= amount){
 			accounts[from] = accounts[from] - amount;
 			accounts[to] = accounts[to] + amount;
 		}else{
-			print("Insufficient funds.");
-			print(from);
-			print(amount);
+			//print("Insufficient funds.");
+			//print(from);
+			//print(amount);
 		}
-		unlock(lockA);
+		unlock(lockTim);
+		unlock(lockWillem);
 		return 0;
-	}
+}
 
 	func int other(int sid){
 		int result = 0;
@@ -31,30 +49,42 @@ Program(sprockells=2) {
 	}
 
 	main {
-		print("Printed once");
+		//should be printed once
+		print("Starting ATM");
+		print("combined the accounts contain:");
+		print(accounts[tim] + accounts[willem]);
+		
+		int totalBefore = accounts[tim] + accounts[willem];
+
+		//up until this point only sprockell 0 should have been running, from here on all other sprockells start (starting at this line)
 		releaseSprockells();
 		
-		int sid = getSprockellId();
-		int othersid = other(sid);
+		int account = getSprockellId();
 		
-		lock(lockA);
-		print("released");
-		print(sid);
-		unlock(lockA);
-
-		if(sid == 0){
-			transfer(sid, othersid,5);
+		if(account == tim){
+			transfer(tim, willem,50);
+			transfer(tim, willem,82);
+			transfer(tim, willem,13);
+			transfer(tim, willem,99);
+			transfer(tim, willem,303);
 		}else{
-			transfer(sid, othersid,6);
-			transfer(sid, othersid,7);
-			transfer(sid, othersid,8);
+			transfer(willem, tim,63);
+			transfer(willem, tim,700);
+			transfer(willem, tim,81);
+			transfer(willem, tim,13);
+			transfer(willem, tim,40);
+			transfer(willem, tim,19);
 		}
 		
+		//until here all sprockells were running, but now they will all halt, and the main thread will wait until all have halted, and then continue.
 		joinSprockells();
 		
-		print(accounts[0]);
-		print(accounts[1]);
+		print("Performed 8 transactions. Accounts now contain combined:");
+		print(accounts[tim] + accounts[willem]);
+		if((accounts[tim] + accounts[willem]) == totalBefore){
+			print("Same! So executed correctly");
+		}else{
+			print("Money out-of/into-thin-air :(");
+		}
 	}
-	
-	
 }

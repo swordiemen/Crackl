@@ -775,7 +775,7 @@ public class TypeChecker extends CracklBaseListener {
 					addError(ctx, "Exptected array of length " + ((Array) expected).getLength() + ", got an array with length " + ((Array) type).getLength() + ".");
 				}
 			}
-			addError(ctx, "(1)Expected type " + expected + ", got " + type);
+			addError(ctx, "Expected type " + expected + ", got " + type);
 
 			res = false;
 		}
@@ -806,7 +806,7 @@ public class TypeChecker extends CracklBaseListener {
 		boolean res = true;
 		if(!actual.equals(expected)){
 			res = false;
-			addError(ctx, "(2) Expected type " + expected + ", got " + actual + ".");
+			addError(ctx, "Expected type " + expected + ", got " + actual + ".");
 		}
 		return res;
 	}
